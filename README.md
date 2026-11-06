@@ -13,7 +13,7 @@ Hardware and background: <https://lisy.dev/> · releases: <https://lisy.dev/swre
 | `plus_hw21x_cyclone_iv` | GottFA80 PLuS HW 2.1x, Cyclone IV | `EP4CE6E22C8` | `51x` | `GottFA80_PLuS_v511.jic` |
 | `plus_hw21x_cyclone_10` | GottFA80 PLuS HW 2.1x, Cyclone 10 | `10CL006YE144C8G` | `61x` | `GottFA80_PLuS_v611.jic` |
 | `plus_hw21x_cyclone_iv_v7` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7 (ESP32-C3) | `EP4CE6F17C8` | `71x` | `GottFA80_PLuS_v711.rbf` |
-| `plus_hw21x_cyclone_iv_v7_1` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7.1 (ESP32-C3) | `EP4CE22F17C8` | `81x` | – (`.rbf`, untested) |
+| `plus_hw21x_cyclone_iv_v7_1` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7.1 (ESP32-C3) | `EP4CE22F17C8` | `81x` | `GottFA80_PLuS_v811.rbf` (untested) |
 
 All boards share **one** top level (`top/SYS80.vhd`) and one source tree. What differs per
 board are the pin locations (`variants/<name>/pins.tcl`), the device and a few constants.
