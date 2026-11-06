@@ -31,6 +31,10 @@
 -- FA-Control (lib_fa_control, aus SternFA) ueber HAS_ESP32, dafuer ohne integriertes
 -- Soundboard (HAS_SOUNDBOARD = false) - beides passt nicht zusammen in den EP4CE6.
 -- Ohne ESP ist fa_active konstant '0'; alle Muxe unten fallen dann weg.
+--
+-- 06.11.2026 Variante plus_hw21x_cyclone_iv_v7_1 (Board v7.1, EP4CE22): FA-Control UND
+-- integriertes Soundboard. Das Soundboard hoert unter FA-Control auf die FA-Werte
+-- (snd_pa/snd_pb), sonst wie bisher auf die RIOT-Ausgaenge.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -136,6 +140,10 @@ signal U4_irq_n			: std_logic;
 signal game_over_relay			: std_logic;
 signal clk_Z1			: std_logic;
 signal clk_Z3			: std_logic;
+-- Eingang des integrierten Soundboards: RIOT U6, unter FA-Control die FA-Werte
+signal snd_pa			: std_logic_vector(7 downto 0);
+signal snd_pb			: std_logic_vector(7 downto 0);
+signal snd_game_running	: std_logic;
 signal test_sw			: std_logic;
 signal credit_sw			: std_logic;
 
@@ -972,24 +980,33 @@ port map(
 	); 
 
 	
+-- Eingang des integrierten Soundboards: unter FA-Control die FA-Werte (RIOT-Bedeutung,
+-- wie U6_pa_out/U6_pb_out), sonst die RIOT-Ausgaenge. Ohne ESP ist fa_active '0' und
+-- beides faellt in der Synthese auf die RIOT-Ausgaenge zurueck.
+snd_pa <= fa_u6a when fa_active='1' else U6_pa_out;
+snd_pb <= fa_u6b when fa_active='1' else U6_pb_out;
+-- Der Kern steht unter FA-Control im Reset (game_running = 0); das Soundboard und sein
+-- DFPlayer-UART sollen trotzdem laufen.
+snd_game_running <= game_running or fa_active;
+
 --integrated soundboard											Sound#3 by pushing test button
-Sound_S1 <= ((not u6_pa_out(0) and not u6_pa_out(4))) when mytest='1' else '1';
-Sound_S2 <= ((not u6_pa_out(1) and not u6_pa_out(4))) when mytest='1' else '1';
-Sound_S4 <= ((not u6_pa_out(2) and not u6_pa_out(4))) when mytest='1' else '0';
-Sound_S8 <= ((not u6_pa_out(3) and not u6_pa_out(4))) when mytest='1' else '0';
+Sound_S1 <= ((not snd_pa(0) and not snd_pa(4))) when mytest='1' else '1';
+Sound_S2 <= ((not snd_pa(1) and not snd_pa(4))) when mytest='1' else '1';
+Sound_S4 <= ((not snd_pa(2) and not snd_pa(4))) when mytest='1' else '0';
+Sound_S8 <= ((not snd_pa(3) and not snd_pa(4))) when mytest='1' else '0';
 
 
 ---------------------
 -- detection Sound16 (Q10)
 ----------------------
-clk_Z3 <= '1' when U6_pb_out(7 downto 4) = "0011" else '0'; --DS3
+clk_Z3 <= '1' when snd_pb(7 downto 4) = "0011" else '0'; --DS3
 
 sn74175_Sound16: entity work.sn74175 
 port map(   
    Clock => clk_50,
 	clk => clk_Z3,
 	clear	=> '1',
-	D => U6_pb_out(3 downto 0),
+	D => snd_pb(3 downto 0),
 	--Q => open,
 	Q(1) => Sound_S16
 );
@@ -999,6 +1016,7 @@ port map(
 -- Integriertes Soundboard (GOSOF80). Auf dem v7-Board (FA-Control) abgeschaltet:
 -- beides zusammen passt nicht in den EP4CE6. Die Sound-Leitungen U6 PA0..4 gehen
 -- trotzdem an den Stecker - ein vorhandenes Original-Soundboard bekommt sie.
+-- Board v7.1 (EP4CE22) hat beides; unter FA-Control spielt es die FA-Sounds (snd_pa).
 ------------------------------------------------------------------------------
 gen_no_soundboard: if not HAS_SOUNDBOARD generate
 	Sound          <= '0';
@@ -1013,7 +1031,7 @@ port map(
 		clk_50	=> clk_50,
 		cpu_clk  => cpu_clk,
 		reset_l	=> reset_l,
-		game_running => game_running,
+		game_running => snd_game_running,
 		test	=> '1', --myTest,
 		Audio_O	=> sound,
 		

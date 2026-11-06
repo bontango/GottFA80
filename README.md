@@ -12,7 +12,8 @@ Hardware and background: <https://lisy.dev/> · releases: <https://lisy.dev/swre
 | `plus_hw201_cyclone_iv` | GottFA80 PLuS HW 2.01, Cyclone IV | `EP4CE6E22C8` | `50x` | `GottFA80_PLuS_v501.jic` |
 | `plus_hw21x_cyclone_iv` | GottFA80 PLuS HW 2.1x, Cyclone IV | `EP4CE6E22C8` | `51x` | `GottFA80_PLuS_v511.jic` |
 | `plus_hw21x_cyclone_10` | GottFA80 PLuS HW 2.1x, Cyclone 10 | `10CL006YE144C8G` | `61x` | `GottFA80_PLuS_v611.jic` |
-| `plus_hw21x_cyclone_iv_v7` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7 (ESP32-C3) | `EP4CE6F17C8` | `71x` | – (`.rbf`, untested) |
+| `plus_hw21x_cyclone_iv_v7` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7 (ESP32-C3) | `EP4CE6F17C8` | `71x` | `GottFA80_PLuS_v711.rbf` |
+| `plus_hw21x_cyclone_iv_v7_1` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7.1 (ESP32-C3) | `EP4CE22F17C8` | `81x` | – (`.rbf`, untested) |
 
 All boards share **one** top level (`top/SYS80.vhd`) and one source tree. What differs per
 board are the pin locations (`variants/<name>/pins.tcl`), the device and a few constants.
@@ -21,6 +22,13 @@ board are the pin locations (`variants/<name>/pins.tcl`), the device and a few c
 the ESP32-C3 web interface) and therefore has **no integrated sound board** – both do not
 fit into the EP4CE6 together. Board v7 has no JTAG header; it is programmed through the
 ESP32, the release artifact is the `.rbf`.
+
+`plus_hw21x_cyclone_iv_v7_1` is board v7.1 with the larger **EP4CE22** and carries both
+FA-Control and the integrated sound board; under FA-Control the sound board plays the sounds
+FA-Control sends. On the EP4CE22 the balls A8/A9 are clock inputs only, so the switch strobes
+`U4_PB[7]`/`U4_PB[5]` moved to N14/R16 and the board needs **two wire bridges**
+(P2-8 to P3-16, P2-3 to P3-14, see `variants/plus_hw21x_cyclone_iv_v7_1/pins.tcl`).
+Programming through the ESP32 needs an FA-Control firmware that knows the EP4CE22.
 
 The version shown at boot is `BOARD_ID & SW_SUB`: the two leading digits identify the
 board (`variants/<name>/variant_pkg.vhd`; first digit FPGA family, second digit board
