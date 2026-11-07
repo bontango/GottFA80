@@ -12,6 +12,18 @@
 --      Diagnose-Ausgaenge err_cmd/err_rx (optional, fuer die 80B-Anzeige)
 -- v054 07.11.2026 vor CMD0 immer CMD12 senden, Wiederholungen ab dort: nach Reset-Taste
 --      steckte die Karte noch im CMD18-Lesen (Anzeige "SD E3 FFFFFFFFFFFFFF")
+--
+-- BEKANNTER FEHLER (Stand 07.11.2026, nicht behoben, vermutlich seit jeher drin):
+--   Nach der Reset-Taste (reset_sw) bei laufendem Spiel antwortet die SD-Karte nicht
+--   mehr auf CMD0 - Blinkcode 3 (die LED blinkt 3x und bleibt dann an; das Dauerlicht
+--   sieht aus wie ein 4. Blinker). Auf der 80B-Anzeige (v7_1): "SD E3 FFFFFFFFFFFFFF",
+--   einmal auch Daten ("SD E3 400F2B43D6F4AC"). Nur Aus-/Einschalten hilft. Kaltstart
+--   und Connect/Release (ohne SD-Neuladen) laufen.
+--   Ohne Wirkung probiert: CMD8-Auswertung (v052/v053, war ohnehin der falsche Befehl -
+--   Code 3 ist CMD0), CMD12 vor CMD0 (v054), CMD12 mit gueltiger CRC und 48x vor
+--   CMD0 (v055, verworfen), Strobes U4_PB[5]/[7] abgeschaltet (Test-Build v7_1).
+--   Beobachtet auf v7_1 (Board v7.1); laut Ralf hilft auch nichts von: anderes Board,
+--   andere Karte, Reset gleich nach dem Kaltstart, zweiter Reset.
 
 library IEEE;
 use IEEE.std_logic_1164.all;
