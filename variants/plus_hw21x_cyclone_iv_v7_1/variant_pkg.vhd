@@ -16,4 +16,7 @@ package variant_pkg is
 	-- 80B-Anzeige (2x20 Zeichen): Bootanzeige boot_message_80B, unter FA-Control zwei
 	-- ASCII-Displays, Monitor liest die Anzeige mit (disp80B_capture). Seit 07.11.2026.
 	constant HAS_DISP_80B : boolean := true;
+	-- Spiel-ROMs aus dem Konfigurationsflash (lib_common\Flash_ROM.vhd), wenn keine SD-Karte
+	-- antwortet. Braucht die AS-Pins DCLK/nCSO/ASDO/DATA0 als User-I/O. Seit 07.11.2026.
+	constant HAS_FLASH_ROM : boolean := true;
 end package variant_pkg;

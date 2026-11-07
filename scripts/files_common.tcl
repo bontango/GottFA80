@@ -26,6 +26,7 @@ set_global_assignment -name VHDL_FILE ../../lib_common/SN7448.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/slow_to_fast_clock_bus.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/slow_to_fast_clock.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/SD_Card.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/R6532.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/detect_sw_trigger.vhd

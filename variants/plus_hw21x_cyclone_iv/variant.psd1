@@ -7,6 +7,6 @@
     BinFolder   = 'PLuS/HW2.1x/Cyclone_IV'
     ReleaseArtifact = 'jic'
     Dormant     = $false
-    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ')
+    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0')
     Notes       = 'Ausgeliefert als GottFA80_PLuS_v511.jic. Nur Debug[0] (PIN_11) ist herausgefuehrt; PIN_7/PIN_2 sind hier Sound/Audio_RX (Korrektur v511).'
 }

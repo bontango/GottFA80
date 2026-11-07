@@ -41,6 +41,10 @@
 -- 40..61 (Bounty Hunter .. Night Moves), feststellbar schon vor dem Spielstart. FA-Control
 -- meldet dann zwei ASCII-Displays zu 20 Zeichen (zweite Belegung in fa_control) und
 -- liest die Anzeige im Monitor mit (lib_common\disp80B_capture.vhd).
+--
+-- 07.11.2026 Spiel-ROMs aus dem Konfigurationsflash (HAS_FLASH_ROM, bisher nur v7_1),
+-- nach SternFA x.30: antwortet keine SD-Karte, laedt lib_common\Flash_ROM.vhd dasselbe
+-- Spiel aus dem EPCS16 (ab 0x080000, Verzeichnis + deduplizierte 2-KB-Bloecke).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -98,7 +102,15 @@ entity SYS80 is
 		-- Auf allen anderen Boards VIRTUAL_PIN (variant.psd1).
 		FA_RXD			:	in		std_logic;	-- R3, vom TX des ESP
 		FA_TXD			:	out	std_logic;	-- T2, zum RX des ESP
-		FA_CTRL_REQ		:	in		std_logic	-- N3, active low, Weak-Pull-up
+		FA_CTRL_REQ		:	in		std_logic;	-- N3, active low, Weak-Pull-up
+
+		-- Konfigurationsflash EPCS16 als zweite Quelle der Spiel-ROMs (HAS_FLASH_ROM,
+		-- lib_common\Flash_ROM.vhd). v7_1: DCLK H1, nCSO D2, ASDO C1, DATA0 H2 als
+		-- User-I/O (device.tcl). Auf allen anderen Boards VIRTUAL_PIN (variant.psd1).
+		FLASH_DCLK		:	out	std_logic;
+		FLASH_NCS		:	out	std_logic;
+		FLASH_ASDO		:	out	std_logic;	-- Daten ins Flash
+		FLASH_DATA0		:	in		std_logic	-- Daten aus dem Flash
 
 		);
 end SYS80;
@@ -212,7 +224,17 @@ signal wr_game_rom2			:  std_logic;
 signal wr_system_rom			:  std_logic;
 signal SDcard_MOSI	:	std_logic; 
 signal SDcard_CLK		:	std_logic; 
-signal SDcard_error	:	std_logic; 
+signal SDcard_error	:	std_logic;
+-- Ausgaenge von SD_Card; address_sd_card/data_sd_card/wr_rom/reset_l/SDcard_error sind
+-- seit HAS_FLASH_ROM die zwischen SD und Flash gemuxten Signale
+signal sd_address		:  std_logic_vector(13 downto 0);
+signal sd_data			:  std_logic_vector(7 downto 0);
+signal sd_wr_rom		:  std_logic;
+signal sd_cpu_reset_l	:  std_logic;
+signal sd_error		:  std_logic;
+signal sd_no_card		:  std_logic;	-- SD-Initialisierung gescheitert -> Flash
+signal use_flash		:  std_logic := '0';	-- Spiel-ROMs kommen aus dem Flash (nur gen_flash_rom treibt es;
+										-- ohne HAS_FLASH_ROM ungetrieben und ungelesen, keine Meldung)
 
 -- EEprom we use 128Bytes
 signal address_eeprom	:  std_logic_vector(6 downto 0);
@@ -414,11 +436,15 @@ begin
 	-- je 20 Zeichen: "GOTTFA80 PLUS   V812" / "GAME 040 OPT00 SB00 " / SD-Fehler s. bm80B_err2
 	bm80B_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80 PLUS   V" & BOARD_ID & SW_SUB;
 	bm80B_row2 <= fa_txt2 when fa_active = '1' else
+	              -- ROM aus dem Konfigurationsflash (HAS_FLASH_ROM): "GAME 040 FLASH ROM  "
+	              "GAME " & game_dig2 & game_dig1 & game_dig0 & " FLASH ROM  " when use_flash = '1' else
 	              "GAME " & game_dig2 & game_dig1 & game_dig0 & " OPT" & g_opt_dig1 & g_opt_dig0 &
 	              " SB" & sb_opt_dig1 & sb_opt_dig0 & " ";
 	-- SD-Fehler mit Diagnose: "SD E4 FF01FFFFFF05FF" = Blinkcode und die 7 Byte des
 	-- Antwortfensters (Byte 7..13 nach dem Befehl, SD_Card v053)
-	bm80B_err2 <= "SD E" & hexc(sd_err_cmd) & " " &
+	-- Flash-Fehler (Slot nicht im Flash): "FLASH ERR GAME 040  "
+	bm80B_err2 <= "FLASH ERR GAME " & game_dig2 & game_dig1 & game_dig0 & "  " when use_flash = '1' else
+	              "SD E" & hexc(sd_err_cmd) & " " &
 	              hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
 	              hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
 	              hexc(sd_err_rx(39 downto 36)) & hexc(sd_err_rx(35 downto 32)) &
@@ -599,17 +625,70 @@ port map(
 	-- selection
 	selection => "0" & opt_freeplay & not game_select,
 	-- data
-	address_sd_card => address_sd_card,
-	data_sd_card => data_sd_card,
-	wr_rom => wr_rom,
+	address_sd_card => sd_address,
+	data_sd_card => sd_data,
+	wr_rom => sd_wr_rom,
 	-- control CPU
-	cpu_reset_l => reset_l,
+	cpu_reset_l => sd_cpu_reset_l,
 	-- feedback
-	SDcard_error => SDcard_error,
+	SDcard_error => sd_error,
 	err_cmd => sd_err_cmd,
-	err_rx  => sd_err_rx
+	err_rx  => sd_err_rx,
+	o_no_card => sd_no_card
 	);
-	
+
+---------------------
+-- Spiel-ROMs aus dem Konfigurationsflash (HAS_FLASH_ROM, bisher nur v7_1), nach SternFA
+-- x.30: antwortet keine SD-Karte (sd_no_card), laedt Flash_ROM dasselbe Spiel aus dem
+-- EPCS16 ab 0x080000 (Verzeichnis + 2-KB-Bloecke, scripts\make_flash_hex.ps1, ueber
+-- FA_Control geschrieben) und uebernimmt Schreibport, CPU-Start und Fehler-LED.
+-- Die vorhandenen Namen (address_sd_card, wr_rom, reset_l, SDcard_error) sind ab hier
+-- die gemuxten Signale.
+---------------------
+gen_flash_rom: if HAS_FLASH_ROM generate
+	signal fl_address    : std_logic_vector(13 downto 0);
+	signal fl_data       : std_logic_vector(7 downto 0);
+	signal fl_wr_rom     : std_logic;
+	signal fl_cpu_reset_l: std_logic;
+	signal fl_error      : std_logic;
+begin
+	use_flash <= sd_no_card;
+
+	FLASH_ROM: entity work.Flash_ROM
+	port map(
+		i_Clk        => clk_50,
+		i_Rst_L      => sd_no_card,
+		o_Flash_Clk  => FLASH_DCLK,
+		o_Flash_CS_n => FLASH_NCS,
+		o_Flash_MOSI => FLASH_ASDO,
+		i_Flash_MISO => FLASH_DATA0,
+		selection    => "0" & opt_freeplay & not game_select,
+		address_rom  => fl_address,
+		data_rom     => fl_data,
+		wr_rom       => fl_wr_rom,
+		cpu_reset_l  => fl_cpu_reset_l,
+		Flash_error  => fl_error,
+		flash_empty  => open
+		);
+
+	address_sd_card <= fl_address     when use_flash = '1' else sd_address;
+	data_sd_card    <= fl_data        when use_flash = '1' else sd_data;
+	wr_rom          <= fl_wr_rom      when use_flash = '1' else sd_wr_rom;
+	reset_l         <= fl_cpu_reset_l when use_flash = '1' else sd_cpu_reset_l;
+	SDcard_error    <= fl_error       when use_flash = '1' else sd_error;
+end generate;
+
+gen_no_flash_rom: if not HAS_FLASH_ROM generate
+	FLASH_DCLK      <= '0';
+	FLASH_NCS       <= '1';
+	FLASH_ASDO      <= '0';
+	address_sd_card <= sd_address;
+	data_sd_card    <= sd_data;
+	wr_rom          <= sd_wr_rom;
+	reset_l         <= sd_cpu_reset_l;
+	SDcard_error    <= sd_error;
+end generate;
+
 ------------------
 -- ROMs ----------
 -- moved to RAM, initial 16KByte read from SD

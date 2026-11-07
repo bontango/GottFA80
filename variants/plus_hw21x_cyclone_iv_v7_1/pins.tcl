@@ -107,3 +107,12 @@ set_location_assignment PIN_R3 -to FA_RXD
 set_location_assignment PIN_T2 -to FA_TXD
 set_location_assignment PIN_N3 -to FA_CTRL_REQ
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to FA_CTRL_REQ
+
+# Konfigurationsflash EPCS16 als zweite Quelle der Spiel-ROMs (HAS_FLASH_ROM, Flash_ROM.vhd).
+# Dual-Purpose-Baelle des 256-FBGA: DCLK H1, DATA0 H2, nCSO D2, ASDO C1 - wie GottFA1
+# hw20x_cyclone_iv_v7. Als User-I/O freigegeben in device.tcl. Der ESP32 haengt an denselben
+# Leitungen und laesst sie im Betrieb hochohmig.
+set_location_assignment PIN_H1 -to FLASH_DCLK
+set_location_assignment PIN_D2 -to FLASH_NCS
+set_location_assignment PIN_C1 -to FLASH_ASDO
+set_location_assignment PIN_H2 -to FLASH_DATA0

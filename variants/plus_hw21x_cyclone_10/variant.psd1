@@ -7,6 +7,6 @@
     BinFolder   = 'PLuS/HW2.1x/Cyclone_10'
     ReleaseArtifact = 'jic'
     Dormant     = $false
-    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ')
+    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0')
     Notes       = 'Ausgeliefert als GottFA80_PLuS_v611.jic. Pinout wie plus_hw21x_cyclone_iv bis auf 6 Lagen (U6_PA[0]/[3], DIP_Strobe[1]/[3], DIP_Return[2], disp_segments[14]).'
 }

@@ -12,6 +12,7 @@
 --      Diagnose-Ausgaenge err_cmd/err_rx (optional, fuer die 80B-Anzeige)
 -- v054 07.11.2026 vor CMD0 immer CMD12 senden, Wiederholungen ab dort: nach Reset-Taste
 --      steckte die Karte noch im CMD18-Lesen (Anzeige "SD E3 FFFFFFFFFFFFFF")
+-- v055 07.11.2026 Ausgang o_no_card fuer den Flash-Fallback (Flash_ROM.vhd, v7_1)
 --
 -- BEKANNTER FEHLER (Stand 07.11.2026, nicht behoben, vermutlich seit jeher drin):
 --   Nach der Reset-Taste (reset_sw) bei laufendem Spiel antwortet die SD-Karte nicht
@@ -55,7 +56,10 @@ use IEEE.numeric_std.all;
 		-- gemerkt - err_cmd = Blinkcode (3 CMD0, 4 CMD8, 6 ACMD41), err_rx = die
 		-- 7 Byte des Antwortfensters nach dem Befehl (Byte 7..13)
 		err_cmd : out std_logic_vector(3 downto 0);
-		err_rx  : out std_logic_vector(55 downto 0)
+		err_rx  : out std_logic_vector(55 downto 0);
+		-- v055 (darf offen bleiben): '1' sobald die Initialisierung gescheitert ist
+		-- (Zustand error/stop) - startet Flash_ROM.vhd als zweite Quelle (v7_1)
+		o_no_card : out std_logic
 		);
     end SD_Card;
 	 
@@ -125,6 +129,8 @@ use IEEE.numeric_std.all;
 		end function;
 	begin
 		
+	o_no_card <= '1' when state_A = error or state_A = stop else '0';
+
 		-- signals for the two SPI Master
 	o_SPI_MOSI <=	
 	MOSI_A when active_master = "01" else
