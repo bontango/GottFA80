@@ -10,6 +10,8 @@
 --      (Warmstart per Reset-Taste endete mit Blinkcode 4 = CMD8)
 -- v053 07.11.2026 CMD8: erste Antwort im ganzen Fenster suchen (NCR bis 8 Byte);
 --      Diagnose-Ausgaenge err_cmd/err_rx (optional, fuer die 80B-Anzeige)
+-- v054 07.11.2026 vor CMD0 immer CMD12 senden, Wiederholungen ab dort: nach Reset-Taste
+--      steckte die Karte noch im CMD18-Lesen (Anzeige "SD E3 FFFFFFFFFFFFFF")
 
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -214,7 +216,13 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 					end if;																													
 				when send_read_request =>						
 				   case cmd_count is
-					   when 1 => TX_Data_A <= x"FF" & x"FFFFFFFFFFFF" & x"FFFFFFFFFFFFFF"; -- init 
+					   -- v054: zuerst CMD12 (CS low). Nach einem Warmstart kann die Karte noch
+					   -- im Mehrblock-Lesen (CMD18) vom letzten Boot stecken und liefert dann
+					   -- Daten statt Antworten (CMD0 scheinbar ok, CMD8 falsch, spaeter nur FF)
+					   -- bis zum Ausschalten. Nach dem Einschalten oder im Ruhezustand ist CMD12
+					   -- wirkungslos (ungueltig bzw. falsche CRC im SD-Modus).
+					   when 0 => TX_Data_A <= x"FF" & CMD12 & x"FFFFFFFFFFFFFF";
+					   when 1 => TX_Data_A <= x"FF" & x"FFFFFFFFFFFF" & x"FFFFFFFFFFFFFF"; -- init
 									 do_not_enable_SS <= '1';
 						when 2 => TX_Data_A <= x"FF" & CMD0 & x"FFFFFFFFFFFFFF"; --go idle state, resets SD card						
 									 do_not_enable_SS <= '0';
@@ -258,7 +266,7 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 									when 2 => --check response of CMD0
 										if (( R1_response /= x"01") and ( R1_response_2 /= x"01")) then
 											if (attempts < 8) then
-												cmd_count <= 2; --repeat
+												cmd_count <= 0; --repeat (v054: ab CMD12, Takte mit CS high, CMD0)
 												attempts <= attempts +1;
 												state_A <= delay_and_repeat; 
 											else											
@@ -283,7 +291,7 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 											state_A <= send_read_request; -- next cmd to send
 										elsif (cmd8_tries < 8) then
 											cmd8_tries <= cmd8_tries +1;
-											cmd_count <= 2; -- repeat from CMD0
+											cmd_count <= 0; -- repeat from CMD12/CMD0 (v054)
 											state_A <= delay_and_repeat;
 										else
 											state_A <= error;

@@ -24,3 +24,9 @@ create_generated_clock -name {cpu_clk_out} -source [get_ports {clk_50}] -divide_
 derive_pll_clocks -create_base_clocks
 
 derive_clock_uncertainty
+
+# clk_50 -> Segmentregister der 80A-Bootanzeige (boot_message, cpu_clk): dort kommen nur
+# Anzeigetexte an (Version, Spielnummer, Optionen, FA-Host-Ziffern), quasistatisch.
+# Der Hold-Wert dieser Uebergaenge hing allein von der Platzierung ab (v7_1,
+# 07.11.2026: -0,5 bis -0,9 ns, wechselnde Pfade).
+set_false_path -from [get_clocks {clk_50}] -to [get_registers -nowarn {boot_message:BM|Din_Seg*}]
