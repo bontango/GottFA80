@@ -8,6 +8,8 @@
 -- v050
 -- v052 07.11.2026 CMD8-Antwort auch 1 Byte spaeter, CMD0/CMD8 bis 8x wiederholen
 --      (Warmstart per Reset-Taste endete mit Blinkcode 4 = CMD8)
+-- v053 07.11.2026 CMD8: erste Antwort im ganzen Fenster suchen (NCR bis 8 Byte);
+--      Diagnose-Ausgaenge err_cmd/err_rx (optional, fuer die 80B-Anzeige)
 
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -34,7 +36,12 @@ use IEEE.numeric_std.all;
 		-- start CPU
 		cpu_reset_l : out STD_LOGIC;
 		-- feedback
-		SDcard_error : out STD_LOGIC
+		SDcard_error : out STD_LOGIC;
+		-- Diagnose (v053, darf offen bleiben): beim Eintritt in den Fehlerzustand
+		-- gemerkt - err_cmd = Blinkcode (3 CMD0, 4 CMD8, 6 ACMD41), err_rx = die
+		-- 7 Byte des Antwortfensters nach dem Befehl (Byte 7..13)
+		err_cmd : out std_logic_vector(3 downto 0);
+		err_rx  : out std_logic_vector(55 downto 0)
 		);
     end SD_Card;
 	 
@@ -78,7 +85,31 @@ use IEEE.numeric_std.all;
 		signal attempts : integer range 0 to 5000;
 		signal cmd8_tries : integer range 0 to 8;   -- Wiederholungen CMD0/CMD8 (v052)
 		signal counter  : integer range 0 to 100000000;   -- delay, for 10ms use 500.000
-	begin		
+
+		-- Diagnose (v053): Befehl und rohe Antwort beim Eintritt in den Fehlerzustand
+		signal err_lat : std_logic;
+
+		-- CMD8 (R7): Antwortfenster = Byte 7..13 nach dem Befehl (RX(55 downto 0)).
+		-- R1 = erstes Byte mit Bit 7 = 0; muss 01 sein, Echo AA 4 Byte spaeter,
+		-- soweit das noch im Fenster liegt.
+		function r7_ok(rx : std_logic_vector(111 downto 0)) return boolean is
+			variable b : std_logic_vector(7 downto 0);
+		begin
+			for i in 8 to 13 loop
+				b := rx(111 - 8 * i downto 104 - 8 * i);
+				if b(7) = '0' then
+					if b /= x"01" then
+						return false;
+					end if;
+					if i + 4 <= 13 then
+						return rx(111 - 8 * (i + 4) downto 104 - 8 * (i + 4)) = x"AA";
+					end if;
+					return true;
+				end if;
+			end loop;
+			return false;
+		end function;
+	begin
 		
 		-- signals for the two SPI Master
 	o_SPI_MOSI <=	
@@ -168,6 +199,7 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 				counter <= 0;
 				attempts <= 0;
 				cmd8_tries <= 0;
+				err_lat <= '0';
 				state_A <= Startdelay;
 			else			
 				case state_A is
@@ -242,8 +274,11 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 										-- initialisiert) kommt die Antwort bei manchen Karten 1 Byte spaeter;
 										-- bis v050 brach das hier ab (Blinkcode 4). Jetzt beide Positionen
 										-- und bei Fehlschlag bis zu 8x ab CMD0 wiederholen.
+										-- v053: NCR darf bis 8 Byte sein - zusaetzlich die erste Antwort
+										-- im ganzen Fenster suchen (r7_ok), Echo nur pruefen, soweit im Fenster.
 										if ( R1_response = x"01" and Echo_response = x"AA") or
-										   ( R1_response_2 = x"01" and RX_Data_A(7 downto 0) = x"AA") then
+										   ( R1_response_2 = x"01" and RX_Data_A(7 downto 0) = x"AA") or
+										   r7_ok(RX_Data_A) then
 											cmd8_tries <= 0;
 											state_A <= send_read_request; -- next cmd to send
 										elsif (cmd8_tries < 8) then
@@ -365,8 +400,13 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 				when all_done =>		
 					SDcard_error <= '1'; --active low
 					
-				when error =>		-- blinkcode according to cmd								
-					counter <= counter +1;					
+				when error =>		-- blinkcode according to cmd
+					if err_lat = '0' then
+						err_lat <= '1';
+						err_cmd <= std_logic_vector(to_unsigned(cmd_count, 4));
+						err_rx  <= RX_Data_A(55 downto 0);
+					end if;
+					counter <= counter +1;				
 					if ( counter = 50000000 ) then --1s							
 						SDcard_error <= '0'; --active low
 					end if;						

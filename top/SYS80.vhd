@@ -179,6 +179,8 @@ signal bm80B_segments	: std_logic_vector(1 to 24);
 signal bm80B_row1			: string(1 to 20);
 signal bm80B_row2			: string(1 to 20);
 signal bm80B_err2			: string(1 to 20);
+signal sd_err_cmd			: std_logic_vector(3 downto 0);	-- SD-Diagnose (SD_Card v053)
+signal sd_err_rx			: std_logic_vector(55 downto 0);
 signal fa_txt1				: string(1 to 20);	-- FA-Control Display 0 (Zeile 1)
 signal fa_txt2				: string(1 to 20);	-- FA-Control Display 1 (Zeile 2)
 
@@ -309,6 +311,12 @@ function byte2char(b : std_logic_vector(7 downto 0)) return character is
 begin
 	return character'val(to_integer(unsigned(b)));
 end function;
+-- Nibble als Hex-Zeichen (SD-Diagnose auf der 80B-Anzeige)
+function hexc(n : std_logic_vector(3 downto 0)) return character is
+	constant H : string(1 to 16) := "0123456789ABCDEF";
+begin
+	return H(to_integer(unsigned(n)) + 1);
+end function;
 
 function char2byte(c : character) return std_logic_vector is
 begin
@@ -403,12 +411,21 @@ gen_disp80b: if HAS_DISP_80B generate
 	signal d80_ld2   : std_logic;
 	signal d80_reset : std_logic;
 begin
-	-- je 20 Zeichen: "GOTTFA80 PLUS   V812" / "GAME 040 OPT00 SB00 " / "SD ERROR GAME 040   "
+	-- je 20 Zeichen: "GOTTFA80 PLUS   V812" / "GAME 040 OPT00 SB00 " / SD-Fehler s. bm80B_err2
 	bm80B_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80 PLUS   V" & BOARD_ID & SW_SUB;
 	bm80B_row2 <= fa_txt2 when fa_active = '1' else
 	              "GAME " & game_dig2 & game_dig1 & game_dig0 & " OPT" & g_opt_dig1 & g_opt_dig0 &
 	              " SB" & sb_opt_dig1 & sb_opt_dig0 & " ";
-	bm80B_err2 <= "SD ERROR GAME " & game_dig2 & game_dig1 & game_dig0 & "   ";
+	-- SD-Fehler mit Diagnose: "SD E4 FF01FFFFFF05FF" = Blinkcode und die 7 Byte des
+	-- Antwortfensters (Byte 7..13 nach dem Befehl, SD_Card v053)
+	bm80B_err2 <= "SD E" & hexc(sd_err_cmd) & " " &
+	              hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
+	              hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
+	              hexc(sd_err_rx(39 downto 36)) & hexc(sd_err_rx(35 downto 32)) &
+	              hexc(sd_err_rx(31 downto 28)) & hexc(sd_err_rx(27 downto 24)) &
+	              hexc(sd_err_rx(23 downto 20)) & hexc(sd_err_rx(19 downto 16)) &
+	              hexc(sd_err_rx(15 downto 12)) & hexc(sd_err_rx(11 downto 8)) &
+	              hexc(sd_err_rx(7 downto 4))   & hexc(sd_err_rx(3 downto 0));
 
 	BM80B: entity work.boot_message_80B
 	generic map(
@@ -588,8 +605,10 @@ port map(
 	-- control CPU
 	cpu_reset_l => reset_l,
 	-- feedback
-	SDcard_error => SDcard_error
-	);	
+	SDcard_error => SDcard_error,
+	err_cmd => sd_err_cmd,
+	err_rx  => sd_err_rx
+	);
 	
 ------------------
 -- ROMs ----------
