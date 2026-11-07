@@ -26,8 +26,13 @@ package fa_control_pkg is
 	-- der Digit-Adresse (bei AtariFA: ja, siehe dortiger Kommentar am Mux).
 	type fa_nibble_array_t is array (natural range <>) of std_logic_vector(3 downto 0);
 
+	-- Zeichenfeld fuer ASCII-Displays (LISY-Typ 5), Index wie oben: d * ALT_MAX_DIGITS + i,
+	-- i = 0 ist das ZUERST gesendete = LINKE Zeichen. Ein Byte je Stelle.
+	type fa_byte_array_t is array (natural range <>) of std_logic_vector(7 downto 0);
+
 	-- Display-Breiten (Stellen je Display). 0 = Display existiert nicht.
-	type    fa_int_array_t   is array (natural range <>) of integer range 0 to 16;
+	-- Obergrenze 32 (vorher 16): alphanumerische Zeilen haben 20 Stellen (Gottlieb 80B).
+	type    fa_int_array_t   is array (natural range <>) of integer range 0 to 32;
 	subtype fa_width_array_t is fa_int_array_t(0 to FA_MAX_DISP - 1);
 
 end package fa_control_pkg;

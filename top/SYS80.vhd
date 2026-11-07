@@ -35,6 +35,12 @@
 -- 06.11.2026 Variante plus_hw21x_cyclone_iv_v7_1 (Board v7.1, EP4CE22): FA-Control UND
 -- integriertes Soundboard. Das Soundboard hoert unter FA-Control auf die FA-Werte
 -- (snd_pa/snd_pb), sonst wie bisher auf die RIOT-Ausgaenge.
+--
+-- 07.11.2026 80B-Anzeige (HAS_DISP_80B, bisher nur v7_1): Bootanzeige auf der 2x20-
+-- Zeichen-Anzeige der 80B-Spiele (lib_common\boot_message_80B.vhd). 80B = Spielauswahl
+-- 40..61 (Bounty Hunter .. Night Moves), feststellbar schon vor dem Spielstart. FA-Control
+-- meldet dann zwei ASCII-Displays zu 20 Zeichen (zweite Belegung in fa_control) und
+-- liest die Anzeige im Monitor mit (lib_common\disp80B_capture.vhd).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -165,8 +171,17 @@ signal bm_segments 		: std_logic_vector(1 to 24);
 signal Din_Seg_A			: std_logic_vector(3 downto 0);	
 signal Din_Seg_B			: std_logic_vector(3 downto 0);	
 signal Din_Seg_C			: std_logic_vector(3 downto 0);	
-signal bm_digit_strobe	: std_logic_vector(3 downto 0);	
-			
+signal bm_digit_strobe	: std_logic_vector(3 downto 0);
+-- 80B-Bootanzeige (HAS_DISP_80B)
+signal sys80B				: std_logic;	-- Spielauswahl ist ein 80B-Spiel (40..61)
+signal show80B				: std_logic;	-- boot_message_80B treibt die Anzeige
+signal bm80B_segments	: std_logic_vector(1 to 24);
+signal bm80B_row1			: string(1 to 20);
+signal bm80B_row2			: string(1 to 20);
+signal bm80B_err2			: string(1 to 20);
+signal fa_txt1				: string(1 to 20);	-- FA-Control Display 0 (Zeile 1)
+signal fa_txt2				: string(1 to 20);	-- FA-Control Display 1 (Zeile 2)
+
 -- RIOT U& Solenoid & Lamp Control
 signal U6_RAM_cs  		: std_logic;
 signal U6_IO_cs  			: std_logic;
@@ -267,8 +282,11 @@ signal wr_soundrom2		: std_logic;
 --                   Test = 07, Replay/Credit = 47 wie in LISY80.
 --   Sound 0..15   = U6 PA3..0 negiert bei PA4 = '0' (Z31). Waehrend ein Sound
 --                   ansteht, sind die Spulendecoder abgeschaltet (gemeinsame Leitungen).
---   Displays 1..4 = Spieler, 7 Stellen, ueber boot_message (nur 80/80A, BCD).
+--   Displays 1..4 = Spieler, 7 Stellen, ueber boot_message (80/80A, BCD).
 --                   Display 0 (Status) wird angenommen, aber nicht angezeigt.
+--                   80B-Spiel (sys80B, nur mit HAS_DISP_80B): stattdessen Display 0/1 =
+--                   Zeile 1/2 der alphanumerischen Anzeige, je 20 Zeichen ASCII (LISY-Typ 5),
+--                   ueber boot_message_80B. Monitor dann 62 statt 40 Byte.
 -- fa_u6a/fa_u6b haben die Bedeutung der RIOT-Ports (vor den Invertern unten),
 -- damit die Ausgangspfade dieselben bleiben wie im Spiel.
 ------------------------------------------------------------------------------
@@ -277,6 +295,27 @@ constant FA_N_SOL		: integer := 9;
 constant FA_N_SW		: integer := 78;
 constant FA_N_DISP	: integer := 5;
 constant FA_DIGITS	: integer := 7;
+constant ALPHA_W		: integer := 20;	-- Zeichen je Zeile der 80B-Anzeige
+
+function isel(c : boolean; a, b : integer) return integer is
+begin
+	if c then
+		return a;
+	end if;
+	return b;
+end function;
+
+function byte2char(b : std_logic_vector(7 downto 0)) return character is
+begin
+	return character'val(to_integer(unsigned(b)));
+end function;
+
+function char2byte(c : character) return std_logic_vector is
+begin
+	return std_logic_vector(to_unsigned(character'pos(c), 8));
+end function;
+
+signal fa_txt			: fa_byte_array_t(0 to isel(HAS_DISP_80B, 2, 0) * ALPHA_W);
 signal fa_active		: std_logic;
 signal fa_sw_state	: std_logic_vector(FA_N_SW - 1 downto 0) := (others => '0');
 signal fa_lamp_ovr	: std_logic_vector(FA_N_LAMPS - 1 downto 0);
@@ -346,7 +385,71 @@ bm_display2 <= fa_disp2 when fa_active = '1' else "    " & game_dig2 & game_dig1
 bm_display3 <= fa_disp3 when fa_active = '1' else " 050963";
 bm_display4 <= fa_disp4 when fa_active = '1' else " " & g_opt_dig1 & g_opt_dig0 & "  " & sb_opt_dig1 & sb_opt_dig0;
 bm_error4   <= fa_disp4 when fa_active = '1' else "0000000";
-	
+
+----------------------
+-- boot message 80B (2 x 20 Zeichen, Rockwell 10941), nur mit HAS_DISP_80B.
+-- 80B laesst sich vor dem Spielstart nur an der Spielauswahl erkennen (not80B unten
+-- gilt erst, wenn das Spiel laeuft): 40 Bounty Hunter .. 61 Night Moves laut
+-- GottFA80games_v501; 62/63 (Amazon Hunt II/III) sind 80A. Gleiche Reihenfolge im
+-- Freeplay-Satz. Waehrend die DIPs gelesen werden, ist game_select nicht gueltig.
+----------------------
+sys80B <= '1' when HAS_DISP_80B and to_integer(unsigned(not game_select)) >= 40
+                   and to_integer(unsigned(not game_select)) <= 61 else '0';
+show80B <= sys80B and not readingdips and ((not game_running) or fa_active or not SDcard_error);
+
+gen_disp80b: if HAS_DISP_80B generate
+	signal d80_data  : std_logic_vector(7 downto 0);
+	signal d80_ld1   : std_logic;
+	signal d80_ld2   : std_logic;
+	signal d80_reset : std_logic;
+begin
+	-- je 20 Zeichen: "GOTTFA80 PLUS   V811" / "GAME 040 OPT00 SB00 " / "SD ERROR GAME 040   "
+	bm80B_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80 PLUS   V" & BOARD_ID & SW_SUB;
+	bm80B_row2 <= fa_txt2 when fa_active = '1' else
+	              "GAME " & game_dig2 & game_dig1 & game_dig0 & " OPT" & g_opt_dig1 & g_opt_dig0 &
+	              " SB" & sb_opt_dig1 & sb_opt_dig0 & " ";
+	bm80B_err2 <= "SD ERROR GAME " & game_dig2 & game_dig1 & game_dig0 & "   ";
+
+	BM80B: entity work.boot_message_80B
+	generic map(
+		CLK_HZ => 50000000
+		)
+	port map(
+		clk_in     => clk_50,
+		show       => show80B,
+		SD_error   => not SDcard_error,
+		data       => d80_data,
+		LD1        => d80_ld1,
+		LD2        => d80_ld2,
+		D_Reset    => d80_reset,
+		row1       => bm80B_row1,
+		row2       => bm80B_row2,
+		error_row2 => bm80B_err2
+		);
+
+	-- J2 wie segments_80B (unten): D0..D3 = 2,6,7,1  D4..D7 = 10,14,15,9
+	-- LD1 = 8, LD2 = 16, Reset = 24; die uebrigen Leitungen bleiben low.
+	BM80B_J2: process(d80_data, d80_ld1, d80_ld2, d80_reset)
+	begin
+		bm80B_segments     <= (others => '0');
+		bm80B_segments(2)  <= d80_data(0);
+		bm80B_segments(6)  <= d80_data(1);
+		bm80B_segments(7)  <= d80_data(2);
+		bm80B_segments(1)  <= d80_data(3);
+		bm80B_segments(10) <= d80_data(4);
+		bm80B_segments(14) <= d80_data(5);
+		bm80B_segments(15) <= d80_data(6);
+		bm80B_segments(9)  <= d80_data(7);
+		bm80B_segments(8)  <= d80_ld1;
+		bm80B_segments(16) <= d80_ld2;
+		bm80B_segments(24) <= d80_reset;
+	end process;
+end generate;
+
+gen_no_disp80b: if not HAS_DISP_80B generate
+	bm80B_segments <= (others => '0');
+end generate;
+
 ----------------------
 -- try anti thunk at boot
 ----------------------
@@ -698,6 +801,7 @@ disp_segments <=
 --	segments_80B when not80B = '0' else	
 --	bm_segments when game_running = '0' else --and U5_pb_out(6) = '1' else  --RTH
 --	segments_80;
+	bm80B_segments when show80B = '1' else	-- 80B-Spiel: Bootanzeige 2x20 (nur HAS_DISP_80B)
 	bm_segments when ( game_running = '0' and U5_pb_out(6) = '1') or SDcard_error = '0' or fa_active = '1' else  --RTH
 	segments_80 when not80B = '1' else
    segments_80B;	
@@ -1086,7 +1190,13 @@ gen_fa_control: if HAS_ESP32 generate
 	--   13..22 Schalter wie Opcode 0x28 (10 * PB + PA)
 	--   23..40 Displays 0..4 (Status 4, Spieler je 7 Stellen + 1 dunkles Fuellnibble),
 	--          zwei Ziffern je Byte, linke Ziffer im High-Nibble, >= 0xA = dunkel
-	constant FA_MON_BYTES : integer := 40;
+	-- 80B-Spiel (sys80B): Displays 0/1 = Zeile 1/2 mit je 20 ASCII-Zeichen, ein Byte je
+	-- Stelle, linkes Zeichen zuerst: Bytes 23..42 und 43..62, Laenge 62.
+	constant FA_MON_BYTES : integer := isel(HAS_DISP_80B, 22 + 2 * ALPHA_W, 40);
+	signal mon_len_s  : integer range 0 to 255;
+	signal mon_bcd    : std_logic_vector(8 * 40 + 7 downto 8 * 23);	-- Displays 80/80A
+	signal mon_row1   : string(1 to ALPHA_W);	-- 80B, mitgelesen
+	signal mon_row2   : string(1 to ALPHA_W);
 	type mon_seq_t is array (0 to 35) of integer range -1 to 31;
 	-- Ziffer n der Displayfolge -> Index in mon_dig (-1 = Fuellnibble)
 	constant MON_SEQ : mon_seq_t := (
@@ -1156,7 +1266,12 @@ generic map(
 	MAX_DIGITS   => FA_DIGITS,
 	GAME_DIGITS  => 3,		-- FA-Control legt Namen/ROMs unter GottFA80/<nnn> ab
 	MON_BYTES    => FA_MON_BYTES,
-	HAS_SIM_SW   => true		-- Opcode 0x6F, Schalter simulieren im Monitor-Modus
+	HAS_SIM_SW   => true,		-- Opcode 0x6F, Schalter simulieren im Monitor-Modus
+	-- 80B: zwei ASCII-Zeilen zu 20 Zeichen statt der BCD-Displays (disp_alt = sys80B)
+	ALT_N_DISP      => isel(HAS_DISP_80B, 2, 0),
+	ALT_DISP_TYPE   => 5,		-- ASCII
+	ALT_DISP_DIGITS => (ALPHA_W, ALPHA_W, 0, 0, 0, 0, 0),
+	ALT_MAX_DIGITS  => ALPHA_W
 	)
 port map(
 	clk         => clk_50,
@@ -1179,8 +1294,37 @@ port map(
 	mon_data    => mon_data,
 	mon_rd      => mon_rd,
 	mon_idx     => mon_idx,
-	sim_sw      => fa_sim_sw
+	mon_len     => mon_len_s,
+	sim_sw      => fa_sim_sw,
+	disp_alt    => sys80B,
+	disp_txt    => fa_txt
 	);
+
+mon_len_s <= 22 + 2 * ALPHA_W when sys80B = '1' else 40;
+
+-- 80B: Zeichen des Hosts, Display 0 = Zeile 1, Display 1 = Zeile 2, linkes Zeichen zuerst
+gen_fa_txt: if HAS_DISP_80B generate
+	fa_txt_conv: for i in 1 to ALPHA_W generate
+		fa_txt1(i) <= byte2char(fa_txt(i - 1));
+		fa_txt2(i) <= byte2char(fa_txt(ALPHA_W + i - 1));
+	end generate;
+
+	-- Was das Spiel an die 80B-Anzeige schickt, fuer den Monitor
+	CAP80B: entity work.disp80B_capture
+	port map(
+		clk     => clk_50,
+		data    => segments_80B(9) & segments_80B(15) & segments_80B(14) & segments_80B(10) &
+		           segments_80B(1) & segments_80B(7) & segments_80B(6) & segments_80B(2),
+		LD1     => segments_80B(8),
+		LD2     => segments_80B(16),
+		D_Reset => segments_80B(24),
+		row1    => mon_row1,
+		row2    => mon_row2
+		);
+end generate;
+
+-- Ohne HAS_DISP_80B bleiben fa_txt1/2 und mon_row1/2 unbenutzt (weder getrieben noch
+-- gelesen) - so kommen keine neuen Meldungen dazu.
 
 -- Simulierte Schalter (Opcode 0x6F, nur im Monitor-Modus, fa_control loescht sie
 -- unter Kontrolle und nach 2 s ohne Byte): Schalter 10*s + r liegt auf Return r,
@@ -1503,10 +1647,28 @@ mon_data(183 downto 104) <= "00" & fa_sw_state;
 
 mon_disp_pack: for n in 0 to 35 generate
 	pad: if MON_SEQ(n) < 0 generate
-		mon_data(8 * (23 + n / 2) + 7 - 4 * (n mod 2) downto 8 * (23 + n / 2) + 4 - 4 * (n mod 2)) <= "1111";
+		mon_bcd(8 * (23 + n / 2) + 7 - 4 * (n mod 2) downto 8 * (23 + n / 2) + 4 - 4 * (n mod 2)) <= "1111";
 	end generate;
 	dig: if MON_SEQ(n) >= 0 generate
-		mon_data(8 * (23 + n / 2) + 7 - 4 * (n mod 2) downto 8 * (23 + n / 2) + 4 - 4 * (n mod 2)) <= mon_dig(MON_SEQ(n));
+		mon_bcd(8 * (23 + n / 2) + 7 - 4 * (n mod 2) downto 8 * (23 + n / 2) + 4 - 4 * (n mod 2)) <= mon_dig(MON_SEQ(n));
+	end generate;
+end generate;
+
+-- Bytes 23..: BCD-Displays (80/80A) oder bei sys80B die beiden Zeilen als ASCII
+-- (FA_MON_BYTES = 62). Ohne HAS_DISP_80B wie vorher.
+gen_mon_bcd: if not HAS_DISP_80B generate
+	mon_data(8 * 40 + 7 downto 8 * 23) <= mon_bcd;
+end generate;
+gen_mon_80b: if HAS_DISP_80B generate
+	mon_disp_bcd: for k in 23 to 40 generate
+		mon_data(8 * k + 7 downto 8 * k) <= char2byte(mon_row1(k - 22)) when sys80B = '1'
+		                                    else mon_bcd(8 * k + 7 downto 8 * k);
+	end generate;
+	mon_disp_alpha1: for k in 41 to 42 generate
+		mon_data(8 * k + 7 downto 8 * k) <= char2byte(mon_row1(k - 22));
+	end generate;
+	mon_disp_alpha2: for k in 43 to 22 + 2 * ALPHA_W generate
+		mon_data(8 * k + 7 downto 8 * k) <= char2byte(mon_row2(k - 42));
 	end generate;
 end generate;
 
@@ -1527,6 +1689,11 @@ gen_no_fa_control: if not HAS_ESP32 generate
 	fa_disp2     <= "       ";
 	fa_disp3     <= "       ";
 	fa_disp4     <= "       ";
+	-- fa_txt1/2 liest nur boot_message_80B (HAS_DISP_80B)
+	nofa_txt: if HAS_DISP_80B generate
+		fa_txt1  <= (others => ' ');
+		fa_txt2  <= (others => ' ');
+	end generate;
 end generate;
 
 end rtl;

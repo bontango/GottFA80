@@ -106,6 +106,23 @@
 -- bleibt kein Schalter haengen. Ohne HAS_SIM_SW (Default) ist Opcode 111 unbekannt und
 -- hat keinen Parameter. Der Host sendet ihn deshalb nur, wenn das Top-Level die
 -- Faehigkeit meldet (Bit 3 des Flag-Bytes, TECHNICAL_REFERENCE.md).
+--
+-- ---------------------------------------------------------------------------
+-- ZWEITE DISPLAY-BELEGUNG (ALT_*, GottFA80 v7.1, 07.11.2026)
+-- ---------------------------------------------------------------------------
+-- Manche Anlagen wechseln die Displays mit dem Spiel: GottFA80 hat bei 80/80A
+-- BCD-Ziffern, bei 80B zwei alphanumerische Zeilen zu 20 Zeichen. Mit ALT_N_DISP > 0
+-- gibt es eine zweite Belegung, die das Top-Level per disp_alt = '1' einschaltet:
+-- Opcode 6/7 melden dann ALT_N_DISP, ALT_DISP_TYPE (Default 5 = ASCII) und
+-- ALT_DISP_DIGITS, und die Display-Befehle 30..36 legen das GANZE Byte in disp_txt ab
+-- (disp_ovr bleibt dunkel). Der Host liest die Belegung beim Connect; disp_alt darf
+-- sich also waehrend einer Verbindung nicht aendern (bei GottFA80 haengt es an den
+-- Spiel-DIPs). Mit dem Default ALT_N_DISP = 0 faellt alles weg - Kopien, die das
+-- nicht anschliessen, synthetisieren wie vorher.
+-- mon_len: tatsaechliche Laenge der Monitor-Antwort, wenn sie mit der Belegung
+-- wechselt (Default MON_BYTES; MON_BYTES ist dann die groesste Laenge).
+-- Stand: nur in GottFA80 (lib_fa_control). SternFA rtl/fa_control beim naechsten
+-- Abgleich nachziehen.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -152,7 +169,12 @@ entity fa_control is
 		-- Laenge der Monitor-Antwort (Opcode 110) ohne Laengenbyte. 0 = kein Monitor.
 		MON_BYTES    : integer := 0;
 		-- Opcode 111 (Schalter simulieren) vorhanden. false = wie unbekannt.
-		HAS_SIM_SW   : boolean := false
+		HAS_SIM_SW   : boolean := false;
+		-- Zweite Display-Belegung (Kopf "ZWEITE DISPLAY-BELEGUNG"). 0 = keine.
+		ALT_N_DISP      : integer := 0;
+		ALT_DISP_TYPE   : integer := 5;   -- 5 = ASCII
+		ALT_DISP_DIGITS : fa_width_array_t := (others => 0);
+		ALT_MAX_DIGITS  : integer := 1    -- Vektorbreite je Display, >= max(ALT_DISP_DIGITS)
 	);
 	port (
 		clk         : in  std_logic;                        -- 50 MHz
@@ -185,8 +207,13 @@ entity fa_control is
 		mon_data    : in  std_logic_vector(8 * MON_BYTES + 7 downto 0) := (others => '0');
 		mon_rd      : out std_logic;                        -- 1 Takt je gesendetem Byte
 		mon_idx     : out integer range 0 to 255;           -- dessen Index k
+		-- tatsaechliche Laenge der Monitor-Antwort (<= MON_BYTES)
+		mon_len     : in  integer range 0 to 255 := MON_BYTES;
 		-- Opcode 111: '1' = dem Spiel als geschlossen vorspielen
-		sim_sw      : out std_logic_vector(MAX_SW - 1 downto 0)
+		sim_sw      : out std_logic_vector(MAX_SW - 1 downto 0);
+		-- Zweite Display-Belegung: '1' = ALT_* gilt. Zeichen d * ALT_MAX_DIGITS + i.
+		disp_alt    : in  std_logic := '0';
+		disp_txt    : out fa_byte_array_t(0 to ALT_N_DISP * ALT_MAX_DIGITS)
 	);
 end fa_control;
 
@@ -327,6 +354,10 @@ architecture rtl of fa_control is
 	signal lamp_r   : std_logic_vector(MAX_LAMPS - 1 downto 0) := (others => '0');
 	signal sol_r    : std_logic_vector(MAX_SOL - 1 downto 0)   := (others => '0');
 	signal disp_r   : fa_nibble_array_t(0 to N_DISP * MAX_DIGITS - 1) := (others => x"F");
+	-- ASCII-Zeichen der zweiten Belegung, Leerzeichen = dunkel. Ein Platz mehr als
+	-- noetig, damit der Bereich auch bei ALT_N_DISP = 0 nicht leer ist.
+	signal txt_r    : fa_byte_array_t(0 to ALT_N_DISP * ALT_MAX_DIGITS) := (others => x"20");
+	signal alt_on   : std_logic;   -- zweite Belegung gilt
 	signal snd_r    : std_logic_vector(3 downto 0) := (others => '0');
 	signal snd_en_r : std_logic := '0';
 
@@ -371,6 +402,8 @@ begin
 	sim_sw      <= sim_r;
 	sol_ovr     <= sol_r;
 	disp_ovr    <= disp_r;
+	disp_txt    <= txt_r;
+	alt_on      <= disp_alt when ALT_N_DISP > 0 else '0';
 	snd_ovr     <= snd_r;
 	snd_en      <= snd_en_r;
 
@@ -378,7 +411,7 @@ begin
 	-- kommen unveraendert von den Eingaengen -- daraus wird eine kleine Nachschlag-
 	-- tabelle statt eines gefuellten Registers.
 	tx_pick : process(tx_src, tx_idx, tx_b0, tx_b1, ver_main, ver_sub1, ver_sub2, game_info,
-	                  mon_data)
+	                  mon_data, mon_len)
 	begin
 		case tx_src is
 			-- tx_idx kann mit Monitor ueber TXBUF_LEN hinaus zaehlen, daher die Abfrage.
@@ -395,7 +428,7 @@ begin
 					tx_next <= x"00";
 				end if;
 			when SRC_MON =>                        -- Laenge, dann mon_data Byte 1..N
-				tx_next <= to_byte(MON_BYTES);
+				tx_next <= to_byte(mon_len);
 				for k in 1 to MON_BYTES loop
 					if tx_idx = k then
 						tx_next <= mon_data(8 * k + 7 downto 8 * k);
@@ -469,6 +502,7 @@ begin
 				lamp_r     <= (others => '0');
 				sol_r      <= (others => '0');
 				disp_r     <= (others => x"F");
+				txt_r      <= (others => x"20");
 				snd_r      <= (others => '0');
 				snd_en_r   <= '0';
 				pulse_run  <= '0';
@@ -512,6 +546,7 @@ begin
 						lamp_r     <= (others => '0');
 						sol_r      <= (others => '0');
 						disp_r     <= (others => x"F");
+						txt_r      <= (others => x"20");
 						snd_en_r   <= '0';
 						pulse_run  <= '0';
 					end if;
@@ -608,7 +643,14 @@ begin
 							-- Gegen DISP_DIGITS(d) pruefen und nicht gegen MAX_DIGITS:
 							-- so werden Ziffernplaetze jenseits der tatsaechlichen Breite
 							-- nie beschrieben und fallen bei der Synthese weg.
-							if ctrl_r = '1' and d < N_DISP then
+							if ctrl_r = '1' and alt_on = '1' then
+								-- zweite Belegung: ganzes Byte (ASCII)
+								if d < ALT_N_DISP then
+									if dd_idx < ALT_DISP_DIGITS(d) then
+										txt_r(d * ALT_MAX_DIGITS + dd_idx) <= rx_byte;
+									end if;
+								end if;
+							elsif ctrl_r = '1' and d < N_DISP then
 								if dd_idx < DISP_DIGITS(d) then
 									disp_r(d * MAX_DIGITS + dd_idx) <= rx_byte(3 downto 0);
 								end if;
@@ -646,12 +688,25 @@ begin
 							when OP_G_NO_SOUNDS =>
 								tx_b0 <= to_byte(N_SOUNDS);  tx_len <= 1;
 							when OP_G_NO_DISP =>
-								tx_b0 <= to_byte(N_DISP);    tx_len <= 1;
+								if alt_on = '1' then
+									tx_b0 <= to_byte(ALT_N_DISP);
+								else
+									tx_b0 <= to_byte(N_DISP);
+								end if;
+								tx_len <= 1;
 							when OP_G_NO_SW =>
 								tx_b0 <= to_byte(N_SW);      tx_len <= 1;
 							when OP_G_DISP_DETAIL =>
 								-- Zwei Bytes: Typ, Stellen. Typ 0 = Display existiert nicht.
-								if par1 < N_DISP then
+								if alt_on = '1' then
+									if par1 < ALT_N_DISP then
+										tx_b0 <= to_byte(ALT_DISP_TYPE);
+										tx_b1 <= to_byte(ALT_DISP_DIGITS(par1));
+									else
+										tx_b0 <= x"00";
+										tx_b1 <= x"00";
+									end if;
+								elsif par1 < N_DISP then
 									tx_b0 <= to_byte(DISP_TYPE);
 									tx_b1 <= to_byte(DISP_DIGITS(par1));
 								else
@@ -751,6 +806,7 @@ begin
 								lamp_r     <= (others => '0');
 								sol_r      <= (others => '0');
 								disp_r     <= (others => x"F");
+								txt_r      <= (others => x"20");
 								snd_en_r   <= '0';
 								pulse_run  <= '0';
 								pulse_ms   <= PULSE_MS_DEF;
@@ -776,7 +832,7 @@ begin
 							-- ---- Monitor: Istzustand, geht immer, aendert nichts ----
 							when OP_G_MONITOR =>
 								if MON_BYTES > 0 then
-									tx_src <= SRC_MON;  tx_len <= MON_BYTES + 1;
+									tx_src <= SRC_MON;  tx_len <= mon_len + 1;
 								else
 									tx_b0 <= x"00";     tx_len <= 1;   -- wie unbekannt
 								end if;

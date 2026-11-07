@@ -34,6 +34,9 @@ set_global_assignment -name VHDL_FILE ../../lib_common/cpu_clk_gen.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/count_to_zero.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/byte_to_ascii.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message.vhd
+# 80B-Anzeige: gebaut nur mit HAS_DISP_80B, gelistet ueberall (Error 10481, s. unten).
+set_global_assignment -name VHDL_FILE ../../lib_common/boot_message_80B.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/disp80B_capture.vhd
 # FA-Control (lib_fa_control, Kopie aus SternFA rtl/fa_control). In JEDER Variante
 # gelistet, gebaut nur mit HAS_ESP32: Quartus loest Entities auch im nicht genommenen
 # generate-Zweig auf (Error 10481).

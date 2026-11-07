@@ -13,4 +13,7 @@ package variant_pkg is
 	constant HAS_ESP32 : boolean := true;
 	-- Integriertes Soundboard GOSOF80 (lib_common\GOSOF80.vhd).
 	constant HAS_SOUNDBOARD : boolean := true;
+	-- 80B-Anzeige (2x20 Zeichen): Bootanzeige boot_message_80B, unter FA-Control zwei
+	-- ASCII-Displays, Monitor liest die Anzeige mit (disp80B_capture). Seit 07.11.2026.
+	constant HAS_DISP_80B : boolean := true;
 end package variant_pkg;
