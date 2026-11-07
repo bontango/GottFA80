@@ -5,6 +5,7 @@
 --   HW2.01 Cyclone IV -> 50x, HW2.1x Cyclone IV -> 51x, HW2.1x Cyclone 10 -> 61x
 --
 -- Stand 04.11.2026: 1 (= ausgelieferte v501 / v511 / v611).
+-- Stand 07.11.2026: 2 (SD_Card v052 Warmstart-Fix, 80B-Anzeige v7_1), noch nicht released.
 package version_pkg is
-	constant SW_SUB : character := '1';
+	constant SW_SUB : character := '2';
 end package version_pkg;
