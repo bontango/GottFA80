@@ -6,6 +6,8 @@
 -- bontango 06.2025
 --
 -- v050
+-- v052 07.11.2026 CMD8-Antwort auch 1 Byte spaeter, CMD0/CMD8 bis 8x wiederholen
+--      (Warmstart per Reset-Taste endete mit Blinkcode 4 = CMD8)
 
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -73,7 +75,8 @@ use IEEE.numeric_std.all;
 		
 		signal byte_count : integer range 0 to 520; 		
 		
-		signal attempts : integer range 0 to 5000; 
+		signal attempts : integer range 0 to 5000;
+		signal cmd8_tries : integer range 0 to 8;   -- Wiederholungen CMD0/CMD8 (v052)
 		signal counter  : integer range 0 to 100000000;   -- delay, for 10ms use 500.000
 	begin		
 		
@@ -164,7 +167,8 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 				SDcard_error <= '1'; -- active low
 				counter <= 0;
 				attempts <= 0;
-				state_A <= Startdelay;    
+				cmd8_tries <= 0;
+				state_A <= Startdelay;
 			else			
 				case state_A is
 				-- STATE MASCHINE ----------------
@@ -233,10 +237,21 @@ SD_CARD_READ: entity work.SPI_Master --read i byte by byte (slooow)
 											state_A <= send_read_request; -- next cmd to send																																						
 										end if;																		
 									when 3 => --check response of CMD8
-										if ( ( R1_response /= x"01") or (Echo_response /= x"AA")) then
-											state_A <= error;
+										-- R7 = R1 + 4 Byte, Echo AA im letzten. R1 nach 1 oder 2 Byte NCR
+										-- (wie bei CMD0). Nach einem Warmstart (Reset-Taste, Karte schon
+										-- initialisiert) kommt die Antwort bei manchen Karten 1 Byte spaeter;
+										-- bis v050 brach das hier ab (Blinkcode 4). Jetzt beide Positionen
+										-- und bei Fehlschlag bis zu 8x ab CMD0 wiederholen.
+										if ( R1_response = x"01" and Echo_response = x"AA") or
+										   ( R1_response_2 = x"01" and RX_Data_A(7 downto 0) = x"AA") then
+											cmd8_tries <= 0;
+											state_A <= send_read_request; -- next cmd to send
+										elsif (cmd8_tries < 8) then
+											cmd8_tries <= cmd8_tries +1;
+											cmd_count <= 2; -- repeat from CMD0
+											state_A <= delay_and_repeat;
 										else
-											state_A <= send_read_request; -- next cmd to send																											
+											state_A <= error;
 										end if;
 									when 5 => -- count 5 is SD card init--repeat CMD55 & ACMD41 until card is READY
 										if (( R1_response /= x"00") and ( R1_response_2 /= x"00")) then 										
