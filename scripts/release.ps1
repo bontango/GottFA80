@@ -4,10 +4,16 @@
 #   .\release.ps1 -Note "..." -Variants plus_hw21x_cyclone_10
 #   .\release.ps1 -Note "..." -Force        vorhandene Datei ueberschreiben
 #
-# Die Versionsnummer setzt sich zusammen aus variants\<n>\variant.psd1 (BoardId,
-# zweistellig, identisch mit BOARD_ID in variant_pkg.vhd) und lib_common\version_pkg.vhd
-# (SW_SUB). Ein Release aendert genau EINE Ziffer in version_pkg.vhd, alle Boards folgen:
-#   bin\<BinFolder>\GottFA80_PLuS_v<BoardId><SW_SUB>.jic
+# Die Versionsnummer setzt sich zusammen aus variants\<n>\variant.psd1 (BoardId, identisch
+# mit BOARD_ID in variant_pkg.vhd) und der Software-Konstante der Linie in
+# lib_common\version_pkg.vhd. Ein Release aendert genau EINE Konstante, alle Boards der
+# Linie folgen:
+#   PLuS (Line = plus): BoardId zweistellig & SW_SUB (eine Ziffer)
+#                       bin\<BinFolder>\GottFA80_PLuS_v<BoardId><SW_SUB>.jic|.rbf
+#   SMD  (Line = smd) : BoardId eine Ziffer & SW_SUB_80 (zwei Ziffern)
+#                       bin\v110\GottFA80_v110_v<BoardId><SW_SUB_80>.jic|.pof
+# Der Dateiname beginnt mit ReleasePrefix aus variant.psd1. -Variants mit Varianten
+# BEIDER Linien in einem Lauf geht nicht (zwei Changelogs, zwei Versionsstaende).
 #
 # bin\ ist (Stand 11/2026) NICHT im Git-Repo - die Releases liegen nur auf dem
 # Netzlaufwerk und auf lisy.dev/swrep.
@@ -24,11 +30,18 @@ $RepoRoot  = Split-Path -Parent $ScriptDir
 $VarRoot   = Join-Path $RepoRoot 'variants'
 $BinRoot   = Join-Path $RepoRoot 'bin'
 $Project   = 'SYS80'
-$Product   = 'GottFA80_PLuS'
 
 $verSrc = Get-Content (Join-Path $RepoRoot 'lib_common\version_pkg.vhd') -Raw
 if ($verSrc -notmatch "SW_SUB\s*:\s*character\s*:=\s*'(\d)'") { throw 'SW_SUB nicht in lib_common\version_pkg.vhd gefunden' }
-$sub = $Matches[1]
+$subPlus = $Matches[1]
+if ($verSrc -notmatch 'SW_SUB_80\s*:\s*string\(1 to 2\)\s*:=\s*"(\d\d)"') { throw 'SW_SUB_80 nicht in lib_common\version_pkg.vhd gefunden' }
+$subSmd = $Matches[1]
+
+# je Linie: Versionskonstante, Laenge der BoardId, Changelog
+$LineInfo = @{
+    plus = @{ Sub = $subPlus; IdLen = 2; Log = 'PLuS\changelog.txt' }
+    smd  = @{ Sub = $subSmd;  IdLen = 1; Log = 'v110\Changelog.txt' }
+}
 
 $dirs = Get-ChildItem $VarRoot -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'variant.psd1') }
 if ($Variants) { $dirs = $dirs | Where-Object { $Variants -contains $_.Name } }
@@ -40,21 +53,27 @@ else {
 }
 if (-not $dirs) { throw 'keine Varianten zu releasen' }
 
+$lines = @($dirs | ForEach-Object { (Import-PowerShellDataFile (Join-Path $_.FullName 'variant.psd1')).Line } | Sort-Object -Unique)
+if ($lines.Count -ne 1) { throw "Varianten aus mehreren Linien ($($lines -join ', ')) - bitte mit -Variants je Linie getrennt releasen." }
+$line = $LineInfo[$lines[0]]
+
 $done = @()
 foreach ($dir in $dirs) {
     $meta = Import-PowerShellDataFile (Join-Path $dir.FullName 'variant.psd1')
     $pkg  = Get-Content (Join-Path $dir.FullName 'variant_pkg.vhd') -Raw
-    if ($pkg -notmatch 'BOARD_ID\s*:\s*string\(1 to 2\)\s*:=\s*"(\d\d)"') { throw "BOARD_ID fehlt in $($dir.Name)\variant_pkg.vhd" }
+    $n = $line.IdLen
+    if ($pkg -notmatch "BOARD_ID\s*:\s*string\(1 to $n\)\s*:=\s*`"(\d{$n})`"") { throw "BOARD_ID (string(1 to $n)) fehlt in $($dir.Name)\variant_pkg.vhd" }
     if ($Matches[1] -ne $meta.BoardId) { throw "$($dir.Name): BoardId in variant.psd1 ($($meta.BoardId)) <> variant_pkg.vhd ($($Matches[1]))" }
+    if (-not $meta.ReleasePrefix) { throw "$($dir.Name): ReleasePrefix fehlt in variant.psd1" }
 
-    $ver  = "$($meta.BoardId)$sub"
+    $ver  = "$($meta.BoardId)$($line.Sub)"
     $ext  = $meta.ReleaseArtifact
     $target = Join-Path $BinRoot ($meta.BinFolder -replace '/', '\')
     if (-not (Test-Path $target)) { New-Item -ItemType Directory $target | Out-Null }
-    $dest = Join-Path $target "${Product}_v$ver.$ext"
+    $dest = Join-Path $target "$($meta.ReleasePrefix)v$ver.$ext"
 
     if ((Test-Path $dest) -and -not $Force) {
-        throw "$dest gibt es schon. SW_SUB in lib_common\version_pkg.vhd hochziehen oder -Force benutzen."
+        throw "$dest gibt es schon. SW_SUB bzw. SW_SUB_80 in lib_common\version_pkg.vhd hochziehen oder -Force benutzen."
     }
 
     & (Join-Path $ScriptDir 'build.ps1') $dir.Name
@@ -66,9 +85,9 @@ foreach ($dir in $dirs) {
     $done += [pscustomobject]@{ Variant = $dir.Name; Version = $ver; File = "$($meta.BinFolder)/$(Split-Path $dest -Leaf)"; Sha = $sha }
 }
 
-# Ein Changelog fuer alle PLuS-Varianten. Die aelteren Eintraege stehen in
-# bin\PLuS\HW2.1x\changelog.txt.
-$log   = Join-Path $BinRoot 'PLuS\changelog.txt'
+# Ein Changelog je Linie: PLuS bin\PLuS\changelog.txt (aeltere Eintraege in
+# bin\PLuS\HW2.1x\changelog.txt), SMD bin\v110\Changelog.txt.
+$log   = Join-Path $BinRoot $line.Log
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
 $head  = (($done | Sort-Object Version | ForEach-Object { "v$($_.Version)" }) -join '/')
 $lines = @('', "-- $head $Note", "   $stamp")

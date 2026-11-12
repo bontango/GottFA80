@@ -1,18 +1,25 @@
-# Arbeitsweise im gemeinsamen Sourcebaum (GottFA80 PLuS)
+# Arbeitsweise im gemeinsamen Sourcebaum (GottFA80)
+
+Zwei Linien in einem Baum: **PLuS** (`variants/plus_*`, Top-Level `top/SYS80.vhd`) und
+**GottFA80 HW 1.1 SMD** (`variants/smd_hw11_*`, Top-Level `top/SYS80_80.vhd`, seit
+12.11.2026). Welche Linie, steht als `Line` in `variants/<n>/variant.psd1`.
 
 ## Was ändern → wo
 
 | Ich will … | Datei |
 |---|---|
-| Logik ändern (für alle Boards) | `top/SYS80.vhd`, `lib_common/*.vhd` |
-| eine neue `.vhd` hinzufügen | Datei nach `lib_common/` **und** Eintrag in `scripts/files_common.tcl` |
+| Logik ändern (PLuS) | `top/SYS80.vhd`, `lib_common/*.vhd` |
+| Logik ändern (SMD) | `top/SYS80_80.vhd`, `lib_common/*.vhd` |
+| eine neue `.vhd` hinzufügen | Datei nach `lib_common/` **und** Eintrag in `scripts/files_common.tcl` (beide Linien), `files_plus.tcl` oder `files_smd.tcl` |
+| eine Board-Eigenschaft schalten | Konstante in `variants/<n>/variant_pkg.vhd` + paarweises `if … generate` im Top-Level |
 | einen Pin eines Boards verlegen | `variants/<n>/pins.tcl` |
 | einen Port nur auf einem Board haben | Port ins Top-Level, auf den anderen Boards in `variant.psd1` → `VirtualPins` |
 | eine globale Quartus-Einstellung | `scripts/common_header.tcl` |
 | Gerät/Familie | `variants/<n>/device.tcl` |
-| Timing-Constraints | `lib_common/SYS80.sdc` (gilt für alle) |
-| Megafunction (ROM/RAM) neu erzeugen | in **beiden** `lib_cyclone_IV/` und `lib_cyclone_10/`, Entity-Namen gleich lassen |
-| Release | `SW_SUB` in `lib_common/version_pkg.vhd` +1, dann `scripts/release.ps1 -Note "…"` |
+| Timing-Constraints | `lib_common/SYS80.sdc` (gilt für alle, außer eine Variante hat eine eigene `variants/<n>/SYS80.sdc` – derzeit nur `smd_hw11_cyclone_iv_v4`) |
+| Megafunction (ROM/RAM) neu erzeugen | in `lib_cyclone_IV/`, `lib_cyclone_10/` **und** (falls SMD sie nutzt) `lib_cyclone_II/` mit Quartus 13.0sp1, Entity-Namen gleich lassen |
+| Release PLuS | `SW_SUB` in `lib_common/version_pkg.vhd` +1, dann `scripts/release.ps1 -Note "…" -Variants plus_…` |
+| Release SMD | `SW_SUB_80` in `lib_common/version_pkg.vhd` +1, dann `scripts/release.ps1 -Note "…" -Variants smd_…` |
 
 **`variants/<n>/SYS80.qsf` nie von Hand ändern.** Schreibt Quartus aus der IDE etwas
 hinein (Pin Planner, Settings-Dialog), meldet `gen_qsf.ps1 -Quiet` das beim nächsten
@@ -36,10 +43,14 @@ Exit-Codes: 0 sauber · 1 Buildfehler · 2 Abweichung von der Baseline.
 
 ## Release
 
-1. `lib_common/version_pkg.vhd`: `SW_SUB` hochzählen (z. B. `'1'` → `'2'`).
-2. `powershell -File scripts\release.ps1 -Note "was sich ändert"`
-   → baut alle aktiven Boards und legt `bin/<BinFolder>/GottFA80_PLuS_v<BoardId><SW_SUB>.jic` ab,
-   schreibt `bin/PLuS/changelog.txt` mit SHA-256 fort.
+Je Linie getrennt – `release.ps1` lehnt eine Auswahl aus beiden Linien ab.
+
+1. `lib_common/version_pkg.vhd`: `SW_SUB` (PLuS, eine Ziffer) bzw. `SW_SUB_80` (SMD, zwei
+   Ziffern) hochzählen.
+2. `powershell -File scripts\release.ps1 -Note "was sich ändert" -Variants <die Boards der Linie>`
+   → baut sie und legt `bin/<BinFolder>/<ReleasePrefix>v<BoardId><Sub>.<ext>` ab:
+   PLuS `bin/PLuS/…/GottFA80_PLuS_v512.jic`, SMD `bin/v110/GottFA80_v110_v204.jic` bzw. `.pof`.
+   Schreibt `bin/PLuS/changelog.txt` bzw. `bin/v110/Changelog.txt` mit SHA-256 fort.
 3. In `VARIANTEN.md` eintragen, welches Board **auf Hardware** getestet wurde.
 
 ## Die alten Projektordner
@@ -49,9 +60,13 @@ Exit-Codes: 0 sauber · 1 Buildfehler · 2 Abweichung von der Baseline.
 sind seit 04.11.2026 nicht mehr im Repo. **Dort nicht mehr bauen oder ändern.**
 HW201 baut dort ohnehin nicht mehr (siehe `VARIANTEN.md`).
 
-Die GottFA80- und GottFA80S-Ordner nebenan sind (noch) eigenständige Projekte und
-benutzen `lib_common/` direkt per `../lib_common`. **Eine Änderung in `lib_common/`
-wirkt also auch dort.** Bestandsaufnahme: `docs/BESTANDSAUFNAHME_80_80S.md`.
+Ebenso die SMD-Ordner `GottFA80_HW1.1SMD_Cyclone_II`, `…_Cyclone_IV_v3`, `…_Cyclone_IV_v4`,
+`…_Cyclone_10` seit 12.11.2026 (Sicherung `archive/<Ordner>_2026-11-12.zip`).
+`GottFA80_HW1.1SMD_Cyclone_IV_v3_MPF` ist ein Duplikat von v3 und wurde nicht übernommen.
+
+Die GottFA80S-Ordner nebenan sind (noch) eigenständige Projekte und benutzen
+`lib_common/` direkt per `../lib_common`. **Eine Änderung in `lib_common/` wirkt also auch
+dort.** Bestandsaufnahme: `docs/BESTANDSAUFNAHME_80_80S.md`.
 
 ## Fallstricke
 
@@ -60,4 +75,11 @@ wirkt also auch dort.** Bestandsaufnahme: `docs/BESTANDSAUFNAHME_80_80S.md`.
 - Textersetzungen nicht mit `sed -i` aus der Git-Bash (zerstört CRLF), sondern
   PowerShell `[System.IO.File]::WriteAllText` mit `UTF8Encoding($false)`.
 - `else generate` gibt es in VHDL-93 nicht; Generate-Labels ändern Hierarchienamen,
-  auf die die `.sdc` zeigt (`cpu_clk_gen:clock_gen|cpu_clk_out`).
+  auf die die `.sdc` zeigt (`cpu_clk_gen:clock_gen|cpu_clk_out`). Deshalb steht
+  `clock_gen` in `top/SYS80_80.vhd` außerhalb jedes Generate.
+- Die `.sdc` wirkt auch auf die **Synthese** (timing-gesteuert): Der False-Path auf
+  `boot_message:BM|Din_Seg*` kostet bei den SMD-Boards +5 Register. Instanznamen, auf die
+  die `.sdc` zeigt, nicht umbenennen.
+- Cyclone II baut mit Quartus 13.0sp1: Dort wirkt `VIRTUAL_PIN` nicht, und Quellen müssen
+  VHDL-93 bleiben. Nach Änderungen in `files_common.tcl`-Modulen `check.ps1 -Variants
+  smd_hw11_cyclone_ii` laufen lassen.

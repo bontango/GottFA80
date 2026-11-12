@@ -1,5 +1,6 @@
-# Whitelist: im Wurzelordner liegen auch die noch nicht umgebauten GottFA80-/GottFA80S-
-# Projektordner und die alten PLuS-Ordner (Backup bis 04.11.2026, nicht mehr benutzen).
+# Whitelist: im Wurzelordner liegen auch die noch nicht umgebauten GottFA80S-Projektordner,
+# die alten PLuS-Ordner (Backup seit 04.11.2026) und die alten GottFA80-SMD-Ordner (Backup
+# seit 12.11.2026) - beide nicht mehr benutzen.
 # Ins Repo gehoert nur der gemeinsame Sourcebaum.
 /*
 
@@ -9,6 +10,7 @@
 !/docs/
 !/lib_common/
 !/lib_cyclone_10/
+!/lib_cyclone_II/
 !/lib_cyclone_IV/
 !/lib_fa_control/
 !/README.md

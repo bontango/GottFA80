@@ -31,10 +31,17 @@ $RepoRoot   = Split-Path -Parent $ScriptDir
 $VarRoot    = Join-Path $RepoRoot 'variants'
 $Project    = 'SYS80'
 
-# Cyclone IV E und Cyclone 10 LP bauen beide mit 22.1std - eine Installation reicht.
-# Andere Installationen auf dieser Maschine (C:\intelFPGA\23.1std, C:\altera) sind nur
-# Programmer bzw. die falsche Version.
-$QuartusBin = 'C:\intelFPGA_lite\22.1std\quartus\bin64'
+# Quartus-Version je FPGA-Familie (FAMILY aus der erzeugten .qsf). Cyclone IV E und
+# Cyclone 10 LP bauen mit 22.1std; Cyclone II (smd_hw11_cyclone_ii) kennt nur 13.0sp1 Web
+# Edition. C:\intelFPGA\23.1std ist nur Programmer. quartus_sh liegt nicht im PATH.
+$QuartusBin = [ordered]@{
+    'Cyclone II' = 'C:\altera\13.0sp1\quartus\bin64'
+    'DEFAULT'    = 'C:\intelFPGA_lite\22.1std\quartus\bin64'
+}
+function Get-QuartusBin([string]$Family) {
+    if ($QuartusBin.Contains($Family)) { return $QuartusBin[$Family] }
+    return $QuartusBin['DEFAULT']
+}
 
 # Gemessene Streuung des Slack bei byte-gleichen Quellen liegt ueber 1 ns, deshalb
 # Toleranz statt Gleichheit - plus einen absoluten Boden, unter dem immer gemeldet wird.
@@ -132,6 +139,7 @@ foreach ($dir in $dirs) {
 
     $status = 'OK'
     $firstError = ''
+    $bin = Get-QuartusBin $family
     Push-Location $dir.FullName
     try {
         $steps = switch ($mode) {
@@ -145,9 +153,9 @@ foreach ($dir in $dirs) {
             # Quartus schreibt dort eine harmlose TBBmalloc-Notiz hin. stdout genuegt -
             # die "Error (...)"-Zeilen stehen ohnehin auch dort.
             $out = if ($step -eq 'quartus_sh') {
-                & "$QuartusBin\quartus_sh.exe" --flow compile $Project
+                & "$bin\quartus_sh.exe" --flow compile $Project
             } else {
-                & "$QuartusBin\$step.exe" $Project
+                & "$bin\$step.exe" $Project
             }
             if ($LASTEXITCODE -ne 0) {
                 $status = "FAILED ($step)"
@@ -187,7 +195,10 @@ foreach ($dir in $dirs) {
             if ($null -ne $slack -and $b.Slack) {
                 $bs = [double]$b.Slack
                 if ([Math]::Abs($slack - $bs) -gt $SlackTolerance) { $d += "Slack {0:0.000}->{1:0.000}" -f $bs, $slack }
-                if ($slack -lt $SlackFloor) { $d += "Slack unter {0} ns" -f $SlackFloor }
+                # Boden nur, wo die Baseline selbst darueber liegt. smd_hw11_cyclone_ii hat einen
+                # bekannten negativen Hold-Slack (Ripple-Takt, s. VARIANTEN.md) - dort wacht
+                # nur die Toleranz, sonst waere jeder Lauf rot.
+                if ($slack -lt $SlackFloor -and $bs -ge $SlackFloor) { $d += "Slack unter {0} ns" -f $SlackFloor }
             }
             if ($b.Meldungen -and $msgs.Count -ne [int]$b.Meldungen) { $d += "Meldungen {0}->{1}" -f $b.Meldungen, $msgs.Count }
             if ($d) { $row.Delta = ($d -join ', '); $anyDrift = $true }

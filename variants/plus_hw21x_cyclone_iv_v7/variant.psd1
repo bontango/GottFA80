@@ -8,6 +8,7 @@
     BinFolder   = 'PLuS/HW2.1x/Cyclone_IV_v7'
     # Board v7 hat keinen JTAG-Stecker; die .rbf (GENERATE_RBF_FILE in device.tcl)
     # wird ueber den ESP32 geschrieben. build.ps1 prueft, dass sie frisch ist.
+    ReleasePrefix   = 'GottFA80_PLuS_'   # GottFA80_PLuS_v<BoardId><SW_SUB>.<ext>
     ReleaseArtifact = 'rbf'
     Dormant     = $false
     # Debug[1..2] wie auf HW2.1x nicht herausgefuehrt; FA_* liegen auf echten Pins.
