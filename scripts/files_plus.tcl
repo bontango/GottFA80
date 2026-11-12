@@ -1,0 +1,22 @@
+# files_plus.tcl - Quellen nur der PLuS-Linie (Line = 'plus' in variant.psd1).
+# Pfade sind relativ zum Projektverzeichnis variants\<n>\.
+#
+# lib_common\ wird (Stand 11/2026) auch von den noch nicht umgebauten
+# GottFA80S-Ordnern direkt per ../lib_common benutzt.
+set_global_assignment -name VHDL_FILE ../../lib_common/uart_clk_gen.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/attract.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/dac.vhd
+set_global_assignment -name VHDL_FILE "../../lib_common/Votrax-SC01.vhd"
+set_global_assignment -name VHDL_FILE ../../lib_common/DFPlayer_Mini_CMD.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/GOSOF80.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/disp80B_capture.vhd
+# FA-Control (lib_fa_control, Kopie aus SternFA rtl/fa_control). In JEDER PLuS-Variante
+# gelistet, gebaut nur mit HAS_ESP32: Quartus loest Entities auch im nicht genommenen
+# generate-Zweig auf (Error 10481).
+set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control_pkg.vhd
+set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_rx.vhd
+set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_tx.vhd
+set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control.vhd
+set_global_assignment -name VHDL_FILE ../../top/SYS80.vhd

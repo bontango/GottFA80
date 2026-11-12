@@ -5,9 +5,12 @@
 #   variants\<n>\device.tcl        FAMILY / DEVICE / LAST_QUARTUS_VERSION
 #   variants\<n>\variant.psd1      TopEntity, RtlFamily, Options, VirtualPins
 #   variants\<n>\pins.tcl          die Pinlagen dieses Boards
-#   scripts\files_common.tcl       gemeinsame Quellen (lib_common\, top\, .sdc, variant_pkg)
+#   scripts\files_common.tcl       gemeinsame Quellen beider Linien (lib_common\, variant_pkg)
+#   scripts\files_<Line>.tcl       Quellen der Linie samt Top-Level: plus -> top\SYS80.vhd,
+#                                  smd -> top\SYS80_80.vhd (GottFA80 HW 1.1)
 #   scripts\files_<RtlFamily>.tcl  die Megafunctions dieser FPGA-Familie (lib_cyclone_*\)
-#   scripts\files_<Option>.tcl     je Eintrag in Options (derzeit keiner)
+#   scripts\files_<Option>.tcl     je Eintrag in Options (pll_civ: PLL des SMD-Boards v4)
+#   SDC_FILE                       variants\<n>\SYS80.sdc, wenn vorhanden, sonst lib_common\SYS80.sdc
 #
 # Warum VIRTUAL_PIN aus variant.psd1: ein deklarierter Ausgangsport ohne Pin-Location
 # ist fuer Quartus ein BENUTZTER Pin. RESERVE_ALL_UNUSED_PINS greift dafuer nicht, und
@@ -56,6 +59,7 @@ $fail   = $false
 
 foreach ($dir in $folders) {
     $meta = Import-PowerShellDataFile (Join-Path $dir.FullName 'variant.psd1')
+    if ($meta.Line -notin @('plus', 'smd')) { throw "$($dir.Name): Line in variant.psd1 muss 'plus' oder 'smd' sein" }
     $out  = New-Object System.Collections.Generic.List[string]
 
     $out.Add('# ==========================================================================')
@@ -70,7 +74,9 @@ foreach ($dir in $folders) {
     $out.Add("#   variants\$($meta.Name)\variant.psd1   (VIRTUAL_PIN)")
     $out.Add("#   variants\$($meta.Name)\pins.tcl")
     $out.Add('#   scripts\files_common.tcl')
+    $out.Add("#   scripts\files_$($meta.Line).tcl")
     $out.Add("#   scripts\files_$($meta.RtlFamily).tcl")
+    foreach ($opt in @($meta.Options)) { if ($opt) { $out.Add("#   scripts\files_$opt.tcl") } }
     $out.Add('#')
     $out.Add('# Aenderungen gehoeren in eines dieser Fragmente, nicht hierher.')
     $out.Add('# ==========================================================================')
@@ -101,10 +107,18 @@ foreach ($dir in $folders) {
     $out.Add('')
     $out.Add('# --- sources ---')
     Read-Fragment (Join-Path $ScriptDir 'files_common.tcl') | ForEach-Object { $out.Add($_) }
+    Read-Fragment (Join-Path $ScriptDir "files_$($meta.Line).tcl") | ForEach-Object { $out.Add($_) }
     Read-Fragment (Join-Path $ScriptDir "files_$($meta.RtlFamily).tcl") | ForEach-Object { $out.Add($_) }
     foreach ($opt in @($meta.Options)) {
         if (-not $opt) { continue }
         Read-Fragment (Join-Path $ScriptDir "files_$opt.tcl") | ForEach-Object { $out.Add($_) }
+    }
+    # Timing: die gemeinsame .sdc, ausser die Variante bringt eine eigene mit
+    # (smd_hw11_cyclone_iv_v4: CPU-Takt aus der PLL statt aus cpu_clk_gen).
+    if (Test-Path (Join-Path $dir.FullName "$Project.sdc")) {
+        $out.Add("set_global_assignment -name SDC_FILE $Project.sdc")
+    } else {
+        $out.Add("set_global_assignment -name SDC_FILE ../../lib_common/$Project.sdc")
     }
 
     $text = ($out -join "`r`n") + "`r`n"

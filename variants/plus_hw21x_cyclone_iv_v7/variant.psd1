@@ -2,6 +2,7 @@
     Name        = 'plus_hw21x_cyclone_iv_v7'
     Title       = 'GottFA80 PLuS HW 2.1x mit Cyclone IV Board v7 (EP4CE6F17C8, ESP32-C3 auf X7)'
     BoardId     = '71'           # zweistellig, steht auch in variant_pkg.vhd
+    Line        = 'plus'         # files_plus.tcl, Top-Level top\SYS80.vhd
     RtlFamily   = 'cyclone_iv'
     Options     = @()
     BinFolder   = 'PLuS/HW2.1x/Cyclone_IV_v7'

@@ -2,6 +2,7 @@
     Name        = 'plus_hw21x_cyclone_iv'
     Title       = 'GottFA80 PLuS HW 2.1x mit Cyclone IV Board (EP4CE6E22C8)'
     BoardId     = '51'           # zweistellig, steht auch in variant_pkg.vhd
+    Line        = 'plus'         # files_plus.tcl, Top-Level top\SYS80.vhd
     RtlFamily   = 'cyclone_iv'      # welche files_<familie>.tcl (lib_cyclone_IV / lib_cyclone_10)
     Options     = @()
     BinFolder   = 'PLuS/HW2.1x/Cyclone_IV'

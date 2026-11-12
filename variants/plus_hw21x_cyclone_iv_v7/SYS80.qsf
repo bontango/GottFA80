@@ -10,6 +10,7 @@
 #   variants\plus_hw21x_cyclone_iv_v7\variant.psd1   (VIRTUAL_PIN)
 #   variants\plus_hw21x_cyclone_iv_v7\pins.tcl
 #   scripts\files_common.tcl
+#   scripts\files_plus.tcl
 #   scripts\files_cyclone_iv.tcl
 #
 # Aenderungen gehoeren in eines dieser Fragmente, nicht hierher.
@@ -145,12 +146,6 @@ set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to FA_CTRL_REQ
 set_global_assignment -name VHDL_FILE ../../lib_common/T65/T65_Pack.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/version_pkg.vhd
 set_global_assignment -name VHDL_FILE variant_pkg.vhd
-set_global_assignment -name VHDL_FILE ../../lib_common/uart_clk_gen.vhd
-set_global_assignment -name VHDL_FILE ../../lib_common/attract.vhd
-set_global_assignment -name VHDL_FILE ../../lib_common/dac.vhd
-set_global_assignment -name VHDL_FILE "../../lib_common/Votrax-SC01.vhd"
-set_global_assignment -name VHDL_FILE ../../lib_common/DFPlayer_Mini_CMD.vhd
-set_global_assignment -name VHDL_FILE ../../lib_common/GOSOF80.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/anti_thunk.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/EEprom.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/T65/T65_MCode.vhd
@@ -163,8 +158,6 @@ set_global_assignment -name VHDL_FILE ../../lib_common/SN7448.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/slow_to_fast_clock_bus.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/slow_to_fast_clock.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/SD_Card.vhd
-set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
-set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/R6532.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/detect_sw_trigger.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/detect_sw.vhd
@@ -173,15 +166,23 @@ set_global_assignment -name VHDL_FILE ../../lib_common/count_to_zero.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/byte_to_ascii.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message_80B.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/uart_clk_gen.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/attract.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/dac.vhd
+set_global_assignment -name VHDL_FILE "../../lib_common/Votrax-SC01.vhd"
+set_global_assignment -name VHDL_FILE ../../lib_common/DFPlayer_Mini_CMD.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/GOSOF80.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/disp80B_capture.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control_pkg.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_rx.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_tx.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control.vhd
 set_global_assignment -name VHDL_FILE ../../top/SYS80.vhd
-set_global_assignment -name SDC_FILE ../../lib_common/SYS80.sdc
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/SYSTEM_ROM.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/SB_RAM.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/RIOT_RAM.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/R5101.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/GAME_ROM.qip
+set_global_assignment -name SDC_FILE ../../lib_common/SYS80.sdc
