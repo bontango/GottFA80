@@ -11,5 +11,5 @@
     ReleaseArtifact = 'jic'
     Dormant     = $false
     VirtualPins = @()
-    Notes       = 'Ausgeliefert als GottFA80_v110_v303.jic. CPU-Takt aus der PLL cpu_clock_gen, 80B-Bootanzeige (nur LD1 verdrahtet, s. VARIANTEN.md). Eigene SYS80.sdc (kein cpu_clk_gen-Takt).'
+    Notes       = 'Ausgeliefert als GottFA80_v110_v303.jic. CPU-Takt aus der PLL cpu_clock_gen, 80B-Bootanzeige wie PLuS v7_1 (seit 12.11.2026, nicht hardwaregetestet). Eigene SYS80.sdc (kein cpu_clk_gen-Takt).'
 }

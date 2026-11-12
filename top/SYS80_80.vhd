@@ -62,9 +62,9 @@
 --              BOARD_ID       first digit of the version shown at boot (1..4)
 --              HAS_LATE80B    second game ROM for the late 80B games (not on Cyclone II,
 --                             no memory left)
---              HAS_PLL_CLK    CPU clock (c0) and 80 kHz (c1) from the PLL cpu_clock_gen
+--              HAS_PLL_CLK    CPU clock (c0) from the PLL cpu_clock_gen (c1 = 80 kHz unused)
 --                             (Cyclone IV board v4.x) instead of cpu_clk_gen
---              HAS_DISP_80B   80B boot message on the alphanumeric display (needs HAS_PLL_CLK)
+--              HAS_DISP_80B   80B boot message on the alphanumeric display, as PLuS v7_1
 --            The software digits come from lib_common\version_pkg.vhd (SW_SUB_80).
 --            The PLuS boards have their own top level top\SYS80.vhd.
 
@@ -142,7 +142,6 @@ end component;
 signal cpu_clk		: std_logic; -- 895 kHz CPU clock
 signal cpu_clk_div	: std_logic; -- from cpu_clk_gen
 signal cpu_clk_pll	: std_logic; -- from the PLL (HAS_PLL_CLK)
-signal clk_80KHz	: std_logic; -- 80 kHz from the PLL (HAS_PLL_CLK), 80B boot message
 signal reset_l	 	: std_logic;
 signal reset_sw_stable	:	std_logic; 
 signal Counter : integer range 0 to 15 := 0;
@@ -203,10 +202,9 @@ signal Din_Seg_B			: std_logic_vector(3 downto 0);
 signal Din_Seg_C			: std_logic_vector(3 downto 0);	
 signal bm_digit_strobe	: std_logic_vector(3 downto 0);
 -- 80B boot message (HAS_DISP_80B)
-signal bm_segments_80B 	: std_logic_vector(7 downto 0);
-signal bm_LD1 				: std_logic;
-signal bm_LD2 				: std_logic;
-signal bm_reset			: std_logic;
+signal sys80B				: std_logic;	-- game selection is an 80B game (40..61)
+signal show80B				: std_logic;	-- boot_message_80B drives the display
+signal bm80B_segments	: std_logic_vector(1 to 24);
 
 -- RIOT U& Solenoid & Lamp Control
 signal U6_RAM_cs  		: std_logic;
@@ -300,31 +298,66 @@ port map(
 	status_d	=> "       "
 	);
 
--- 80B boot message on the alphanumeric display (Cyclone IV board v4.x).
--- Only LD1 goes to the display so far (segments_80B(8)), see VARIANTEN.md.
-gen_bm80B: if HAS_DISP_80B generate
-BM80B: entity work.boot_message_80B
-port map(
-	clk_in		=> clk_80KHz,
-	-- Control/Data Signals,
-   show  => not game_running,
-	SD_error => not SDcard_error,
-	-- output
-	data => bm_segments_80B,
-	LD1 => bm_LD1,
-	LD2 => bm_LD2,
-	D_Reset => bm_reset,
-	-- input (display data)
-	row1	=> "GottFA80 Version " & BOARD_ID & SW_SUB_80,  -- 20 characters, e.g. "GottFA80 Version 303"
-	row2	=> "SD card OK game     ",
-	error_row2 => "SD Error   game     "
-	);
-end generate gen_bm80B;
--- Without the 80B boot message only bm_LD1 is read (segments_80B(8) below);
--- bm_segments_80B / bm_LD2 / bm_reset stay unassigned (no Warning 10036).
-gen_no_bm80B: if not HAS_DISP_80B generate
-	bm_LD1 <= '0';
-end generate gen_no_bm80B;
+----------------------
+-- boot message 80B (2 x 20 characters, Rockwell 10941), only with HAS_DISP_80B.
+-- Same scheme as the PLuS board v7_1 (top\SYS80.vhd): before the game starts 80B can only
+-- be told from the game selection (not80B below is valid once the game runs):
+-- 40 Bounty Hunter .. 61 Night Moves; 62/63 (Amazon Hunt II/III) are 80A. While the DIPs
+-- are read game_select is not valid. As long as show80B = '1' the module drives the whole
+-- J2 bus (data, LD1, LD2, reset); during the game J2 belongs to the RIOT again.
+-- 12.11.2026: up to then (and in the released v303) only LD1 came from the module, and it
+-- did so during the game as well - row 1 of an 80B display got no load pulse from the game.
+----------------------
+sys80B <= '1' when HAS_DISP_80B and to_integer(unsigned(not game_select)) >= 40
+                   and to_integer(unsigned(not game_select)) <= 61 else '0';
+show80B <= sys80B and not readingdips and ((not game_running) or not SDcard_error);
+
+gen_disp80b: if HAS_DISP_80B generate
+	signal d80_data  : std_logic_vector(7 downto 0);
+	signal d80_ld1   : std_logic;
+	signal d80_ld2   : std_logic;
+	signal d80_reset : std_logic;
+begin
+	BM80B: entity work.boot_message_80B
+	generic map(
+		CLK_HZ => 50000000
+		)
+	port map(
+		clk_in     => clk_50,
+		show       => show80B,
+		SD_error   => not SDcard_error,
+		data       => d80_data,
+		LD1        => d80_ld1,
+		LD2        => d80_ld2,
+		D_Reset    => d80_reset,
+		-- 20 characters each: "GOTTFA80 SMD    V303" / "GAME 040 SD OK      "
+		row1       => "GOTTFA80 SMD    V" & BOARD_ID & SW_SUB_80,
+		row2       => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " SD OK      ",
+		error_row2 => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " SD ERROR   "
+		);
+
+	-- J2 as segments_80B (below): D0..D3 = 2,6,7,1  D4..D7 = 10,14,15,9
+	-- LD1 = 8, LD2 = 16, Reset = 24; the other lines stay low.
+	BM80B_J2: process(d80_data, d80_ld1, d80_ld2, d80_reset)
+	begin
+		bm80B_segments     <= (others => '0');
+		bm80B_segments(2)  <= d80_data(0);
+		bm80B_segments(6)  <= d80_data(1);
+		bm80B_segments(7)  <= d80_data(2);
+		bm80B_segments(1)  <= d80_data(3);
+		bm80B_segments(10) <= d80_data(4);
+		bm80B_segments(14) <= d80_data(5);
+		bm80B_segments(15) <= d80_data(6);
+		bm80B_segments(9)  <= d80_data(7);
+		bm80B_segments(8)  <= d80_ld1;
+		bm80B_segments(16) <= d80_ld2;
+		bm80B_segments(24) <= d80_reset;
+	end process;
+end generate gen_disp80b;
+
+gen_no_disp80b: if not HAS_DISP_80B generate
+	bm80B_segments <= (others => '0');
+end generate gen_no_disp80b;
 
 ----------------------
 -- try anti thunk at boot
@@ -613,8 +646,9 @@ port map(
 
 -- assign display segments dependent on display type		
 -- zero in case of
-disp_segments <= 
+disp_segments <=
    -- segments_80B when not80B = '0' else
+	bm80B_segments when show80B = '1' else	-- 80B game: boot message 2x20 (only HAS_DISP_80B)
 	bm_segments when game_running = '0' and U5_pb_out(6) = '1' else  --RTH
 	segments_80 when not80B = '1' else
    segments_80B;	
@@ -633,7 +667,7 @@ disp_segments <=
 --------------------------------------------------
 -- 80B display routines	
 --------------------------------------------------
-segments_80B(8) <= bm_LD1 when HAS_DISP_80B else not U5_pb_out(4); --LD1
+segments_80B(8) <= not U5_pb_out(4); --LD1
 segments_80B(16) <= not U5_pb_out(5); --LD2
 segments_80B(24) <= not U5_pb_out(6); --Reset
 -- D0 ... D4
@@ -743,7 +777,7 @@ PLL: cpu_clock_gen
 port map(
 	inclk0 => clk_50,
 	c0	    => cpu_clk_pll,
-	c1		 => clk_80KHz
+	c1		 => open	-- 80 kHz, was the clock of boot_message_80B until 12.11.2026
 );
 end generate gen_pll;
 gen_no_pll: if not HAS_PLL_CLK generate

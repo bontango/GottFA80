@@ -8,8 +8,8 @@ package variant_pkg is
 	constant BOARD_ID : string(1 to 1) := "2";
 	-- Zweites Spiel-ROM (2 KB) fuer die spaeten 80B-Spiele. Nicht auf Cyclone II (Speicher).
 	constant HAS_LATE80B : boolean := true;
-	-- CPU-Takt und 80 kHz aus der PLL cpu_clock_gen (lib_cyclone_IV) statt aus cpu_clk_gen.
+	-- CPU-Takt aus der PLL cpu_clock_gen (lib_cyclone_IV) statt aus cpu_clk_gen.
 	constant HAS_PLL_CLK : boolean := false;
-	-- 80B-Bootanzeige (lib_common\boot_message_80B.vhd), braucht HAS_PLL_CLK (80 kHz).
+	-- 80B-Bootanzeige 2x20 Zeichen (lib_common\boot_message_80B.vhd) wie PLuS v7_1.
 	constant HAS_DISP_80B : boolean := false;
 end package variant_pkg;
