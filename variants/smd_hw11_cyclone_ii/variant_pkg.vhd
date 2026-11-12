@@ -11,5 +11,5 @@ package variant_pkg is
 	-- CPU-Takt aus der PLL cpu_clock_gen (lib_cyclone_IV) statt aus cpu_clk_gen.
 	constant HAS_PLL_CLK : boolean := false;
 	-- 80B-Bootanzeige 2x20 Zeichen (lib_common\boot_message_80B.vhd) wie PLuS v7_1.
-	constant HAS_DISP_80B : boolean := false;
+	constant HAS_DISP_80B : boolean := true;
 end package variant_pkg;

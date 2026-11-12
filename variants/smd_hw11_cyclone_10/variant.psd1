@@ -11,5 +11,5 @@
     ReleaseArtifact = 'jic'
     Dormant     = $false
     VirtualPins = @()
-    Notes       = 'Ausgeliefert als GottFA80_v110_v403a.jic.'
+    Notes       = 'Ausgeliefert als GottFA80_v110_v403a.jic. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
 }

@@ -11,5 +11,5 @@
     ReleaseArtifact = 'jic'
     Dormant     = $false
     VirtualPins = @()
-    Notes       = 'Ausgeliefert als GottFA80_v110_v203.jic. Vorher Ordner GottFA80_HW1.1SMD_Cyclone_IV_v3 (Board v3.x, EP4CE6 im F17-Gehaeuse) - benannt wie BallyFA hw1_cyclone_iv.'
+    Notes       = 'Ausgeliefert als GottFA80_v110_v203.jic. Vorher Ordner GottFA80_HW1.1SMD_Cyclone_IV_v3 (Board v3.x, EP4CE6 im F17-Gehaeuse) - benannt wie BallyFA hw1_cyclone_iv. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
 }
