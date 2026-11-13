@@ -328,7 +328,21 @@ gen_disp80b: if HAS_DISP_80B generate
 	signal d80_ld1   : std_logic;
 	signal d80_ld2   : std_logic;
 	signal d80_reset : std_logic;
+	signal d80_err2  : string(1 to 20);
 begin
+	-- SD error row as PLuS v7_1 (13.11.2026): no answer at all (all 7 bytes FF, typically no
+	-- card) -> "GAME 040 NO SD CARD ", otherwise the diagnosis "SD E4 FF01FFFFFF05FF" = blink
+	-- code and the 7 bytes of the response window (byte 7..13 after the command, SD_Card v053)
+	d80_err2 <= "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " NO SD CARD " when sd_err_rx = x"FFFFFFFFFFFFFF" else
+	            "SD E" & hexc(sd_err_cmd) & " " &
+	            hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
+	            hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
+	            hexc(sd_err_rx(39 downto 36)) & hexc(sd_err_rx(35 downto 32)) &
+	            hexc(sd_err_rx(31 downto 28)) & hexc(sd_err_rx(27 downto 24)) &
+	            hexc(sd_err_rx(23 downto 20)) & hexc(sd_err_rx(19 downto 16)) &
+	            hexc(sd_err_rx(15 downto 12)) & hexc(sd_err_rx(11 downto 8)) &
+	            hexc(sd_err_rx(7 downto 4))   & hexc(sd_err_rx(3 downto 0));
+
 	BM80B: entity work.boot_message_80B
 	generic map(
 		CLK_HZ => 50000000
@@ -344,16 +358,7 @@ begin
 		-- 20 characters each: "GOTTFA80 SMD    V303" / "GAME 040 OPT00      "
 		row1       => "GOTTFA80 SMD    V" & BOARD_ID & SW_SUB_80,
 		row2       => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ",
-		-- SD error with diagnosis as PLuS v7_1: "SD E4 FF01FFFFFF05FF" = blink code and the
-		-- 7 bytes of the response window (byte 7..13 after the command, SD_Card v053)
-		error_row2 => "SD E" & hexc(sd_err_cmd) & " " &
-		              hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
-		              hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
-		              hexc(sd_err_rx(39 downto 36)) & hexc(sd_err_rx(35 downto 32)) &
-		              hexc(sd_err_rx(31 downto 28)) & hexc(sd_err_rx(27 downto 24)) &
-		              hexc(sd_err_rx(23 downto 20)) & hexc(sd_err_rx(19 downto 16)) &
-		              hexc(sd_err_rx(15 downto 12)) & hexc(sd_err_rx(11 downto 8)) &
-		              hexc(sd_err_rx(7 downto 4))   & hexc(sd_err_rx(3 downto 0))
+		error_row2 => d80_err2
 		);
 
 	-- J2 as segments_80B (below): D0..D3 = 2,6,7,1  D4..D7 = 10,14,15,9

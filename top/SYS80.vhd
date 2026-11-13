@@ -466,7 +466,10 @@ begin
 	-- SD-Fehler mit Diagnose: "SD E4 FF01FFFFFF05FF" = Blinkcode und die 7 Byte des
 	-- Antwortfensters (Byte 7..13 nach dem Befehl, SD_Card v053)
 	-- Flash-Fehler (Slot nicht im Flash): "FLASH ERR GAME 040  "
+	-- 13.11.2026: antwortet gar nichts (alle 7 Byte FF, typisch ohne Karte) Klartext
+	-- "GAME 040 NO SD CARD ", die Diagnosebytes nur, wenn eine Karte etwas antwortet.
 	bm80B_err2 <= "FLASH ERR GAME " & game_dig2 & game_dig1 & game_dig0 & "  " when use_flash = '1' else
+	              "GAME " & game_dig2 & game_dig1 & game_dig0 & " NO SD CARD " when sd_err_rx = x"FFFFFFFFFFFFFF" else
 	              "SD E" & hexc(sd_err_cmd) & " " &
 	              hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
 	              hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
