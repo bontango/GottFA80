@@ -5,6 +5,10 @@ set_global_assignment -name VHDL_FILE ../../lib_common/uart_clk_gen.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/attract.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/dac.vhd
 set_global_assignment -name VHDL_FILE "../../lib_common/Votrax-SC01.vhd"
+# Votrax-SC-01-Emulation (Kopie aus Gosof80), gebaut nur mit HAS_VOTRAX (gen_votrax in
+# GOSOF80.vhd). In jeder PLuS-Variante gelistet, aus demselben Grund wie lib_fa_control.
+set_global_assignment -name VHDL_FILE ../../lib_common/votrax/votrax_tables_pkg.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/votrax/votrax_sc01.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/DFPlayer_Mini_CMD.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/GOSOF80.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd

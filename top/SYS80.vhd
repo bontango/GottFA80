@@ -1274,6 +1274,9 @@ end generate;
 
 gen_soundboard: if HAS_SOUNDBOARD generate
 SOUNDBOARD: entity work.gosof80
+generic map(
+		HAS_VOTRAX => HAS_VOTRAX
+)
 port map(
 		clk_50	=> clk_50,
 		cpu_clk  => cpu_clk,

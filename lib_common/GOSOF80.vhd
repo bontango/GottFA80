@@ -2,12 +2,21 @@
 -- by bontango www.lisy.dev
 -- 
 -- Version for GottFA80S based on GOSOF 3.97 with attract
+--
+-- 13.11.2026: optional Votrax SC-01 emulation from Gosof80 x.98/x.99 (generic HAS_VOTRAX,
+-- lib_common/votrax, copied from Gosof80 rtl/common/votrax). With HAS_VOTRAX MA-216 games
+-- always speak through the emulation (no MP3 speech, no attract MP3); $3000 = SC-01 clock,
+-- $7000 = mute, 10 bit mixer, and the S1..S16 settle filter of Gosof x.99. Without
+-- HAS_VOTRAX everything is as before (GOSOF 3.97). No version announcement.
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity gosof80 is
+	generic(
+		HAS_VOTRAX : boolean := false
+	);
 	port(
 		clk_50	: in std_logic;
 		cpu_clk	: in std_logic;
@@ -84,7 +93,23 @@ architecture rtl of gosof80 is
 	signal DAC_latch_speech	:  std_logic;
 	signal sc01_strobe	:  std_logic;
 	signal sc01_AR			:  std_logic;
+	signal sc01_AR_timing	:  std_logic; -- A/R of the timing-only SC01 (MP3 speech)
 	signal sc01_cs			:  std_logic;
+
+	-- Votrax SC-01 emulation (HAS_VOTRAX, MA-216 games)
+	signal votrax_on		:  std_logic;
+	signal vtx_ar			:  std_logic;
+
+	-- sound inputs as the board sees them (settle filter with HAS_VOTRAX)
+	signal Sound_in		:  std_logic_vector(4 downto 0);
+
+	-- audio DAC width: 8 bit as before, 10 bit with the Votrax mixer
+	function dac_msb_of(v : boolean) return natural is
+	begin
+		if v then return 9; else return 7; end if;
+	end function;
+	constant DAC_MSB : natural := dac_msb_of(HAS_VOTRAX);
+	signal dac_in			:  std_logic_vector(DAC_MSB downto 0);
 	
 	signal send_flag	:  std_logic:='0';
 	signal DFcmd_cmd	:  std_logic_vector(7 downto 0);
@@ -173,9 +198,105 @@ port map(
          clk => clk_50,
 			strobe => sc01_strobe,
 			cpu_data => cpu_dout(5 downto 0),
-			AR => sc01_AR,
+			AR => sc01_AR_timing,
          rst => reset_l
 );
+
+-- Votrax SC-01 emulation (Gosof80 x.98): with HAS_VOTRAX always for MA-216 games.
+-- Then MP3 speech and attract MP3 are off, the game program speaks itself.
+votrax_on <= '1' when HAS_VOTRAX and SB_type = is_MA216 else '0';
+sc01_AR <= vtx_ar when votrax_on = '1' else sc01_AR_timing;
+
+gen_votrax: if HAS_VOTRAX generate
+	signal speech_clk_latch	:  std_logic_vector(7 downto 0); -- $3000, SC-01 clock
+	signal vtx_mute_stb		:  std_logic;
+	signal vtx_stb			:  std_logic;
+	signal settle_last	:  std_logic_vector(4 downto 0) := (others => '0');
+	signal settle_out		:  std_logic_vector(4 downto 0) := (others => '0');
+	signal settle_cnt		:  natural range 0 to 1000 := 0;
+	signal vtx_audio		:  signed(15 downto 0);
+	signal audio_mix		:  std_logic_vector(9 downto 0);
+begin
+	-- settle filter (Gosof x.99): the inputs count only after all five were unchanged for
+	-- 1000 cpu_clk cycles (~1 ms). S16 comes from its own latch (sn74175_Sound16 in
+	-- SYS80.vhd, a separate write of the game), on the original from the driver board, and
+	-- can arrive after S1..S8; the MA-216 program reads port A once after the PA7 IRQ and
+	-- would miss it (Gosof: Black Hole without speech). The MP3 path is unchanged.
+	Settle: process(cpu_clk) is
+	begin
+		if rising_edge(cpu_clk) then
+			if Sound_Meta /= settle_last then
+				settle_last <= Sound_Meta;
+				settle_cnt <= 0;
+			elsif settle_cnt < 1000 then
+				settle_cnt <= settle_cnt + 1;
+			else
+				settle_out <= settle_last;
+			end if;
+		end if;
+	end process;
+	Sound_in <= settle_out;
+
+	-- $3000: D/A converter for the SC-01 clock (0x7E = 720 kHz, games lower it for TILT)
+	Speech_Clock_Latch: process(clk_50) is
+	begin
+		if rising_edge(clk_50) then
+			if reset_l = '0' then
+				speech_clk_latch <= x"7E";
+			elsif dac_latch_speech = '1' then
+				speech_clk_latch <= cpu_dout;
+			end if;
+		end if;
+	end process;
+
+	-- PinMAME gts80s.c: a write to $7000-$7FFF mutes the speech until the next
+	-- phoneme write to $2000
+	vtx_mute_stb <= '1' when cpu_addr(14 downto 12) = "111" and cpu_wr_n = '0' and cpu_clk = '0'
+	                         and votrax_on = '1' else '0';
+	vtx_stb <= sc01_strobe and votrax_on;
+
+	VOTRAX: entity work.votrax_sc01
+	generic map (G_TICK_DIV => 0)
+	port map(
+		clk       => clk_50,
+		rst_n     => reset_l,
+		stb       => vtx_stb,
+		data      => cpu_dout,
+		mute_stb  => vtx_mute_stb,
+		clk_ctrl  => speech_clk_latch,
+		ar        => vtx_ar,
+		audio     => vtx_audio,
+		audio_stb => open,
+		tick_o    => open
+	);
+
+	-- Mixer (Gosof80 x.98): sound DAC (8 bit, 0x80 = silence) + SC-01 speech, 10 bit for the
+	-- DAC. Speech 1.0 (= 8192) -> 512 = full scale of the sound DAC. With the emulation on the
+	-- sound DAC is scaled x3 instead of x4 (-2.5 dB), as on Gosof (hardware test 15.10.2026).
+	Audio_Mixer: process(clk_50) is
+		variable d : integer range -128 to 127;
+		variable s : integer range -4096 to 4095;
+	begin
+		if rising_edge(clk_50) then
+			d := to_integer(unsigned(audio_dat)) - 128;
+			if votrax_on = '1' then
+				s := d * 2 + d;
+				s := s + to_integer(shift_right(vtx_audio, 4));
+			else
+				s := d * 4;
+			end if;
+			if s > 511 then s := 511; elsif s < -512 then s := -512; end if;
+			audio_mix <= std_logic_vector(to_unsigned(s + 512, 10));
+		end if;
+	end process;
+
+	dac_in <= audio_mix;
+end generate;
+gen_no_votrax: if not HAS_VOTRAX generate
+	vtx_ar    <= '1';
+	Sound_in  <= Sound_Meta;
+	dac_in    <= audio_dat;
+end generate;
 
 -- phase 2 is complement of CPU clock
 phi2 <= not(cpu_clk); 
@@ -252,16 +373,16 @@ cpu_din <=
 -- MA55 use PA_out for 1408 DAC
 --Sound board inputs through RIOT port A via GOSOF 
 -- use not sound for benchtest with 2803A
-riot_pa_i(0) <= Sound_meta(0);
-riot_pa_i(1) <= Sound_meta(1);
-riot_pa_i(2) <= Sound_meta(2);
-riot_pa_i(3) <= Sound_meta(3);
-riot_pa_i(4) <= Sound_meta(4);
+riot_pa_i(0) <= Sound_in(0);
+riot_pa_i(1) <= Sound_in(1);
+riot_pa_i(2) <= Sound_in(2);
+riot_pa_i(3) <= Sound_in(3);
+riot_pa_i(4) <= Sound_in(4);
 riot_pa_i(5) <= '0'; -- wired, but not used
 riot_pa_i(6) <= '0'; -- not wired, not used
 -- Strobe signal generates IRQ when one of the inputs S1-S8 go low
 -- we do this also for speech as the SB may want to stop current sound
-riot_pa_i(7) <= ( Sound_meta(0) or Sound_meta(1) or Sound_meta(2) or Sound_meta(3));
+riot_pa_i(7) <= ( Sound_in(0) or Sound_in(1) or Sound_in(2) or Sound_in(3));
 
 -- RIOT PB
 ---
@@ -272,20 +393,20 @@ riot_pa_i(7) <= ( Sound_meta(0) or Sound_meta(1) or Sound_meta(2) or Sound_meta(
 --
 --Test attract mode and speech off for Mars
 -- Manual: Switch ON -> 0, Switch OFF -> 1
-riot_pb_i(0) <= Sound_meta(0) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
+riot_pb_i(0) <= Sound_in(0) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
 				    '1'; -- DIP7 not wired on Gosof PCB
-riot_pb_i(1) <= Sound_meta(1) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
+riot_pb_i(1) <= Sound_in(1) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
 					 SB_Opt(6); --DIP6
-riot_pb_i(2) <= Sound_meta(2) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
+riot_pb_i(2) <= Sound_in(2) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
 					 SB_Opt(5); --DIP5
-riot_pb_i(3) <= Sound_meta(3) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
+riot_pb_i(3) <= Sound_in(3) when ( SB_type = is_MA55 or SB_type = is_MA490 or SB_type = is_SYS1 ) else
 					 SB_Opt(1); --DIP1
 riot_pb_i(4) <= SB_Opt(4) when (SB_type = is_MA216 or SB_type = is_MA309) else --DIP4
 					 SB_Opt(2); --MA55 and MA490 -- Attract mode sounds enable (S2 on board)
 riot_pb_i(5) <= cpu_addr(10) when ( SB_type = is_MA55 or SB_type = is_SYS1 ) else --CS2 (needed?)
 					 SB_Opt(3); --DIP3
 riot_pb_i(6) <= '0' when ( SB_type = is_MA55 or SB_type = is_MA490 ) else  -- S16 Spare not used by games with MA-55 and MA490
-					  Sound_meta(4) when ( SB_type = is_SYS1 ) else -- 5 inputs with System1 'Multisound'
+					  Sound_in(4) when ( SB_type = is_SYS1 ) else -- 5 inputs with System1 'Multisound'
 					  test; -- connected to Testswitch against ground with MA216 & MA390
 --for MA216 we have also a wire to A/R of SC01 ( is pB7 a input or a output IO?)
 -- jumpered to Vcc in most games, can be strapped to riot PB7 out;
@@ -305,9 +426,10 @@ DFcmd_cmd <= X"0F"; -- cmd for folder to playback
 -- DFcmd_par1 with game_sel
 
 DFcmd_par2 <=  attract_sound when attract_send_flag = '1'
-					  else "000" & Sound_meta;
+					  else "000" & Sound_in;
 
-send_flag <= riot_pa_i(7) when speech_ctrl(to_integer(unsigned(Sound_meta))) = '0' else
+send_flag <= '0' when votrax_on = '1' else -- speech (also in attract mode) from the SC-01 emulation
+				  riot_pa_i(7) when speech_ctrl(to_integer(unsigned(Sound_in))) = '0' else
 				  attract_send_flag;
 	
 				
@@ -388,16 +510,18 @@ audio_dat <= audio_dat_latch when ( SB_type = is_MA216 or SB_type = is_MA309) el
 				 riot_pa_o;
 				 
 				 
--- Delta-Sigma audio DAC
+-- Delta-Sigma audio DAC: 8 bit audio_dat, or 10 bit from the mixer in gen_votrax
+-- (instance kept outside the generate, so its hierarchy name is unchanged)
 Audio_DAC : entity work.dac
 generic map(
-  msbi_g => 7)
+  msbi_g => DAC_MSB)
 port  map(
    clk_i   => clk_50,
    res_n_i => reset_l,
-   dac_i   => audio_dat,
+   dac_i   => dac_in,
    dac_o   => audio_O
 );
+
 
 -- 9600 baud send clock
 uart_gen: entity work.uart_clk_gen 

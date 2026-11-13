@@ -21,4 +21,8 @@ package variant_pkg is
 	-- Zeile 1 der 80B-Bootanzeige (HAS_DISP_80B), davor "V" & BOARD_ID & SW_SUB = 20 Zeichen.
 	-- PLuS "GOTTFA80 PLUS   ", GottFA80S "GOTTFA80S       " (13.11.2026).
 	constant BOOT_NAME_80B : string(1 to 16) := "GOTTFA80 PLUS   ";
+	-- Votrax-SC-01-Emulation im Soundboard (lib_common\votrax, Kopie aus Gosof80): MA-216-Spiele
+	-- sprechen dann immer ueber die Emulation. Braucht ~2.430 LE und 15 M9K - passt nicht in
+	-- EP4CE6/10CL006, Probebau auf EP4CE10 (plus_hw21x_cyclone_iv_e10). Seit 13.11.2026.
+	constant HAS_VOTRAX : boolean := false;
 end package variant_pkg;
