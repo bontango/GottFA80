@@ -22,4 +22,7 @@ package variant_pkg is
 	-- Gemeinsamer SPI-Bus MOSI/MISO/CLK fuer SD-Karte und EEprom. false nur bei GottFA80S
 	-- HW 1.1 (getrennte Busse SD_*/EE_*), s. top\SYS80.vhd. Seit 13.11.2026.
 	constant HAS_SHARED_SPI : boolean := true;
+	-- Zeile 1 der 80B-Bootanzeige (HAS_DISP_80B), davor "V" & BOARD_ID & SW_SUB = 20 Zeichen.
+	-- PLuS "GOTTFA80 PLUS   ", GottFA80S "GOTTFA80S       " (13.11.2026).
+	constant BOOT_NAME_80B : string(1 to 16) := "GOTTFA80 PLUS   ";
 end package variant_pkg;

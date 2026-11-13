@@ -456,8 +456,8 @@ gen_disp80b: if HAS_DISP_80B generate
 	signal d80_ld2   : std_logic;
 	signal d80_reset : std_logic;
 begin
-	-- je 20 Zeichen: "GOTTFA80 PLUS   V812" / "GAME 040 OPT00 SB00 " / SD-Fehler s. bm80B_err2
-	bm80B_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80 PLUS   V" & BOARD_ID & SW_SUB;
+	-- je 20 Zeichen: "GOTTFA80 PLUS   V812" bzw. "GOTTFA80S       V545" (BOOT_NAME_80B) / "GAME 040 OPT00 SB00 " / SD-Fehler s. bm80B_err2
+	bm80B_row1 <= fa_txt1 when fa_active = '1' else BOOT_NAME_80B & "V" & BOARD_ID & SW_SUB;
 	bm80B_row2 <= fa_txt2 when fa_active = '1' else
 	              -- ROM aus dem Konfigurationsflash (HAS_FLASH_ROM): "GAME 040 FLASH ROM  "
 	              "GAME " & game_dig2 & game_dig1 & game_dig0 & " FLASH ROM  " when use_flash = '1' else
