@@ -1,9 +1,11 @@
 -- read the dips on GottFA
--- part of  GottFA80_PLuS
+-- part of  GottFA80 HW 1.1 SMD (top\SYS80_80.vhd): 2 strobes x 5 returns
 -- bontango 07.2022
 --
 -- v 1.0
 -- 895KHz input clock
+-- 13.11.2026: entity renamed read_the_dips -> read_the_dips_80, so that it no longer
+--             clashes with lib_common\read_the_dips.vhd (GottFA80S / GottFA80 PLuS)
 
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
@@ -11,7 +13,7 @@ USE ieee.std_logic_1164.all;
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 
-    entity read_the_dips is        
+    entity read_the_dips_80 is
         port(
             clk_in  : in std_logic;               						
 				i_Rst_L : in std_logic;     -- FPGA Reset		
@@ -30,9 +32,9 @@ USE ieee.std_logic_1164.all;
 				return5			: in std_logic
 				
             );
-    end read_the_dips;
+    end read_the_dips_80;
     ---------------------------------------------------
-    architecture Behavioral of read_the_dips is
+    architecture Behavioral of read_the_dips_80 is
 	 	type STATE_T is ( Start, Idle, Read1, Read2 ); 
 		signal state : STATE_T := Start;       		
 	begin

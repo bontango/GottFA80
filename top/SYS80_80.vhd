@@ -234,7 +234,9 @@ signal wr_game_rom2			:  std_logic;
 signal wr_system_rom			:  std_logic;
 signal SDcard_MOSI	:	std_logic; 
 signal SDcard_CLK		:	std_logic; 
-signal SDcard_error	:	std_logic; 
+signal SDcard_error	:	std_logic;
+signal sd_err_cmd			: std_logic_vector(3 downto 0);	-- SD diagnosis (SD_Card v053)
+signal sd_err_rx			: std_logic_vector(55 downto 0);
 
 -- EEprom we use 128Bytes
 signal address_eeprom	:  std_logic_vector(6 downto 0);
@@ -249,6 +251,8 @@ signal game_running		: 	std_logic:= '0';
 signal dig0_ascii			:  character;
 signal dig1_ascii			:  character;
 signal dig2_ascii			:  character;
+signal g_opt_dig0			:  character;	-- game options (DIPs) for the boot message, as PLuS
+signal g_opt_dig1			:  character;
 
 -- dip games select and options
 signal readingdips	: 	std_logic:= '1';
@@ -260,6 +264,13 @@ signal sim_coin		: 	std_logic:= '0';
 signal slam				: 	std_logic;
 signal lamp_ds 		:  std_logic_vector(3 downto 0);		
 signal late80B			: std_logic:='0'; --default we have not a late 80B system with bigger rom
+
+-- nibble as hex character (SD diagnosis on the 80B boot message), copy of top\SYS80.vhd
+function hexc(n : std_logic_vector(3 downto 0)) return character is
+	constant H : string(1 to 16) := "0123456789ABCDEF";
+begin
+	return H(to_integer(unsigned(n)) + 1);
+end function;
 
 -- game options
 signal opt_freeplay				: 	std_logic;
@@ -293,7 +304,7 @@ port map(
 	display1	=> "    " & BOARD_ID & SW_SUB_80,  -- e.g. "    203"
 	display2	=> "    " & dig2_ascii &dig1_ascii & dig0_ascii,	
 	display3	=> " 050963",
-	display4	=> "       ",
+	display4	=> " " & g_opt_dig1 & g_opt_dig0 & "    ",  -- game options, as PLuS (no SB options)
 	error_disp4 => "0000000",	
 	status_d	=> "       "
 	);
@@ -330,10 +341,19 @@ begin
 		LD1        => d80_ld1,
 		LD2        => d80_ld2,
 		D_Reset    => d80_reset,
-		-- 20 characters each: "GOTTFA80 SMD    V303" / "GAME 040 SD OK      "
+		-- 20 characters each: "GOTTFA80 SMD    V303" / "GAME 040 OPT00      "
 		row1       => "GOTTFA80 SMD    V" & BOARD_ID & SW_SUB_80,
-		row2       => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " SD OK      ",
-		error_row2 => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " SD ERROR   "
+		row2       => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ",
+		-- SD error with diagnosis as PLuS v7_1: "SD E4 FF01FFFFFF05FF" = blink code and the
+		-- 7 bytes of the response window (byte 7..13 after the command, SD_Card v053)
+		error_row2 => "SD E" & hexc(sd_err_cmd) & " " &
+		              hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
+		              hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
+		              hexc(sd_err_rx(39 downto 36)) & hexc(sd_err_rx(35 downto 32)) &
+		              hexc(sd_err_rx(31 downto 28)) & hexc(sd_err_rx(27 downto 24)) &
+		              hexc(sd_err_rx(23 downto 20)) & hexc(sd_err_rx(19 downto 16)) &
+		              hexc(sd_err_rx(15 downto 12)) & hexc(sd_err_rx(11 downto 8)) &
+		              hexc(sd_err_rx(7 downto 4))   & hexc(sd_err_rx(3 downto 0))
 		);
 
 	-- J2 as segments_80B (below): D0..D3 = 2,6,7,1  D4..D7 = 10,14,15,9
@@ -374,7 +394,7 @@ port map(
 ----------------------
 -- read the dips
 ----------------------
-RDIPS: entity work.read_the_dips
+RDIPS: entity work.read_the_dips_80
 port map(
 	clk_in		=> cpu_clk, 	
 	i_Rst_L  => reset_sw_stable,     -- FPGA Reset   
@@ -402,7 +422,17 @@ port map(
 	dig1_ascii => dig1_ascii,
 	dig2_ascii => dig2_ascii
 	);
-	
+
+-- game options for the boot message (as PLuS CONVO, but 4 option DIPs)
+CONVO: entity work.byte_to_ascii
+port map(
+	clk_in	=> clk_50,
+	mybyte	=> "1111" & game_option(4) & game_option(3) & game_option(2) & game_option(1),
+	dig0_ascii => g_opt_dig0,
+	dig1_ascii => g_opt_dig1,
+	dig2_ascii => open
+	);
+
 
 -- LEDs FPGA board
 LED_0 <= not EEprom_active;
@@ -487,8 +517,11 @@ port map(
 	-- control CPU
 	cpu_reset_l => reset_l,
 	-- feedback
-	SDcard_error => SDcard_error
-	);	
+	SDcard_error => SDcard_error,
+	-- diagnosis for the 80B boot message (SD_Card v053)
+	err_cmd => sd_err_cmd,
+	err_rx  => sd_err_rx
+	);
 	
 ------------------
 -- ROMs ----------
@@ -582,9 +615,9 @@ port map(
 	);
 
 -- simulate left coin ( strobe 1 / return 7 )
-Freeplay: process(sim_coin)
- begin 
-    if (( sim_coin = '1') and (U4_PB(1) = '1') and (game_option(1) = '0')) then
+Freeplay: process(sim_coin, U4_PB, opt_freeplay)
+ begin
+    if (( sim_coin = '1') and (U4_PB(1) = '1') and (opt_freeplay = '1')) then
 		SW_Freeplay(7) <= '1';
 	 else	
 		SW_Freeplay(7) <= '0';

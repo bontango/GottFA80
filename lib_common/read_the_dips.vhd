@@ -1,5 +1,7 @@
 -- read the dips on GottFA
--- part of  GottFA80S
+-- part of  GottFA80S and GottFA80 PLuS (top\SYS80.vhd): 4 strobes x 4 returns,
+-- game options + soundboard options
+-- (GottFA80 HW 1.1 SMD uses lib_common\read_the_dips_80.vhd, entity read_the_dips_80)
 -- bontango 04.2025
 --
 -- v 1.0
