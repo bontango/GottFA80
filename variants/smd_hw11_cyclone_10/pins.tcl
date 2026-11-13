@@ -84,3 +84,11 @@ set_location_assignment PIN_88 -to DIP_Return[3]
 set_location_assignment PIN_142 -to DIP_Strobe[0]
 set_location_assignment PIN_32 -to DIP_Strobe[1]
 set_location_assignment PIN_90 -to myTest
+# Konfigurationsflash EPCS16 als zweite Quelle der Spiel-ROMs (HAS_FLASH_ROM, 13.11.2026),
+# E144-AS-Pins wie GottFA1_PLuS hw21x_cyclone_10.
+set_location_assignment PIN_12 -to FLASH_DCLK
+set_location_assignment PIN_8 -to FLASH_NCS
+set_location_assignment PIN_6 -to FLASH_ASDO
+set_location_assignment PIN_13 -to FLASH_DATA0
+# ohne SD-Karte liest MISO sicher FF (sonst erkennt SD_Card evtl. eine Karte, die nicht da ist)
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to MISO

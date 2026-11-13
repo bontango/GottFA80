@@ -119,8 +119,15 @@ entity SYS80_80 is
 		
 		-- LEDs on GottFA
 		LED_SDcard	: 	out 	std_logic;
-		LED_Int		: 	out 	std_logic
-		
+		LED_Int		: 	out 	std_logic;
+
+		-- configuration flash EPCS16 as second source of the game ROMs (HAS_FLASH_ROM,
+		-- lib_common\Flash_ROM.vhd); AS pins as user I/O (device.tcl). VIRTUAL_PIN on the
+		-- boards without flash loader (variant.psd1), high impedance there.
+		FLASH_DCLK		:	out	std_logic;
+		FLASH_NCS		:	out	std_logic;
+		FLASH_ASDO		:	out	std_logic;	-- data into the flash
+		FLASH_DATA0		:	in		std_logic	-- data out of the flash
 		);
 end SYS80_80;
 
@@ -235,6 +242,15 @@ signal wr_system_rom			:  std_logic;
 signal SDcard_MOSI	:	std_logic; 
 signal SDcard_CLK		:	std_logic; 
 signal SDcard_error	:	std_logic;
+-- outputs of SD_Card; address_sd_card/data_sd_card/wr_rom/reset_l/SDcard_error are the
+-- signals muxed between SD card and flash (HAS_FLASH_ROM)
+signal sd_address		:  std_logic_vector(13 downto 0);
+signal sd_data			:  std_logic_vector(7 downto 0);
+signal sd_wr_rom		:  std_logic;
+signal sd_cpu_reset_l	:  std_logic;
+signal sd_error		:  std_logic;
+signal sd_no_card		:  std_logic;	-- SD init failed -> flash
+signal use_flash		:  std_logic;	-- game ROMs come from the flash
 signal sd_err_cmd			: std_logic_vector(3 downto 0);	-- SD diagnosis (SD_Card v053)
 signal sd_err_rx			: std_logic_vector(55 downto 0);
 
@@ -329,11 +345,17 @@ gen_disp80b: if HAS_DISP_80B generate
 	signal d80_ld2   : std_logic;
 	signal d80_reset : std_logic;
 	signal d80_err2  : string(1 to 20);
+	signal d80_row2  : string(1 to 20);
 begin
-	-- SD error row as PLuS v7_1 (13.11.2026): no answer at all (all 7 bytes FF, typically no
-	-- card) -> "GAME 040 NO SD CARD ", otherwise the diagnosis "SD E4 FF01FFFFFF05FF" = blink
-	-- code and the 7 bytes of the response window (byte 7..13 after the command, SD_Card v053)
-	d80_err2 <= "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " NO SD CARD " when sd_err_rx = x"FFFFFFFFFFFFFF" else
+	-- row 2: game and options, or "GAME 040 FLASH ROM  " when the ROMs come from the flash
+	d80_row2 <= "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FLASH ROM  " when use_flash = '1' else
+	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ";
+	-- error row as PLuS v7_1: flash error (slot not in the flash) "FLASH ERR GAME 040  ";
+	-- SD: no answer at all (all 7 bytes FF, typically no card) -> "GAME 040 NO SD CARD ",
+	-- otherwise the diagnosis "SD E4 FF01FFFFFF05FF" = blink code and the 7 bytes of the
+	-- response window (byte 7..13 after the command, SD_Card v053)
+	d80_err2 <= "FLASH ERR GAME " & dig2_ascii & dig1_ascii & dig0_ascii & "  " when use_flash = '1' else
+	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " NO SD CARD " when sd_err_rx = x"FFFFFFFFFFFFFF" else
 	            "SD E" & hexc(sd_err_cmd) & " " &
 	            hexc(sd_err_rx(55 downto 52)) & hexc(sd_err_rx(51 downto 48)) &
 	            hexc(sd_err_rx(47 downto 44)) & hexc(sd_err_rx(43 downto 40)) &
@@ -357,7 +379,7 @@ begin
 		D_Reset    => d80_reset,
 		-- 20 characters each: "GOTTFA80 SMD    V303" / "GAME 040 OPT00      "
 		row1       => "GOTTFA80 SMD    V" & BOARD_ID & SW_SUB_80,
-		row2       => "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ",
+		row2       => d80_row2,
 		error_row2 => d80_err2
 		);
 
@@ -516,18 +538,73 @@ port map(
 	-- selection
 	selection => "0" & opt_freeplay & not game_select,	
 	-- data
-	address_sd_card => address_sd_card,
-	data_sd_card => data_sd_card,
-	wr_rom => wr_rom,
+	address_sd_card => sd_address,
+	data_sd_card => sd_data,
+	wr_rom => sd_wr_rom,
 	-- control CPU
-	cpu_reset_l => reset_l,
+	cpu_reset_l => sd_cpu_reset_l,
 	-- feedback
-	SDcard_error => SDcard_error,
+	SDcard_error => sd_error,
 	-- diagnosis for the 80B boot message (SD_Card v053)
 	err_cmd => sd_err_cmd,
-	err_rx  => sd_err_rx
+	err_rx  => sd_err_rx,
+	o_no_card => sd_no_card
 	);
-	
+
+---------------------
+-- Game ROMs from the configuration flash (HAS_FLASH_ROM, 13.11.2026), as PLuS v7_1
+-- (top\SYS80.vhd): if no SD card answers (sd_no_card), lib_common\Flash_ROM.vhd loads
+-- the same slot from the EPCS16 (from 0x080000, directory + deduplicated 2 KByte blocks,
+-- written by scripts\make_flash_hex.ps1 into gottfa80_roms.jic) and takes over ROM write
+-- port, CPU reset and the error signal.
+---------------------
+gen_flash_rom: if HAS_FLASH_ROM generate
+	signal fl_address    : std_logic_vector(13 downto 0);
+	signal fl_data       : std_logic_vector(7 downto 0);
+	signal fl_wr_rom     : std_logic;
+	signal fl_cpu_reset_l: std_logic;
+	signal fl_error      : std_logic;
+begin
+	use_flash <= sd_no_card;
+
+	FLASH_ROM: entity work.Flash_ROM
+	port map(
+		i_Clk        => clk_50,
+		i_Rst_L      => sd_no_card,
+		o_Flash_Clk  => FLASH_DCLK,
+		o_Flash_CS_n => FLASH_NCS,
+		o_Flash_MOSI => FLASH_ASDO,
+		i_Flash_MISO => FLASH_DATA0,
+		selection    => "0" & opt_freeplay & not game_select,
+		address_rom  => fl_address,
+		data_rom     => fl_data,
+		wr_rom       => fl_wr_rom,
+		cpu_reset_l  => fl_cpu_reset_l,
+		Flash_error  => fl_error,
+		flash_empty  => open
+		);
+
+	address_sd_card <= fl_address     when use_flash = '1' else sd_address;
+	data_sd_card    <= fl_data        when use_flash = '1' else sd_data;
+	wr_rom          <= fl_wr_rom      when use_flash = '1' else sd_wr_rom;
+	reset_l         <= fl_cpu_reset_l when use_flash = '1' else sd_cpu_reset_l;
+	SDcard_error    <= fl_error       when use_flash = '1' else sd_error;
+end generate gen_flash_rom;
+
+-- Without the flash loader the FLASH_* outputs are high impedance, not driven: Quartus 13
+-- (smd_hw11_cyclone_ii) does not know VIRTUAL_PIN and puts these ports on free pins.
+gen_no_flash_rom: if not HAS_FLASH_ROM generate
+	use_flash       <= '0';
+	FLASH_DCLK      <= 'Z';
+	FLASH_NCS       <= 'Z';
+	FLASH_ASDO      <= 'Z';
+	address_sd_card <= sd_address;
+	data_sd_card    <= sd_data;
+	wr_rom          <= sd_wr_rom;
+	reset_l         <= sd_cpu_reset_l;
+	SDcard_error    <= sd_error;
+end generate gen_no_flash_rom;
+
 ------------------
 -- ROMs ----------
 -- moved to RAM, initial 16KByte read from SD

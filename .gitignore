@@ -58,3 +58,10 @@ desktop.ini
 # HINWEIS: die .cmp/.ppf der Megafunctions sind ABSICHTLICH getrackt - die .qip
 # listen sie als MISC_FILE.
 # HINWEIS: bin/ (Releases) liegt nicht im Repo, nur auf dem Netzlaufwerk und lisy.dev.
+
+# FPGA-Flash-Images MIT Spiel-ROMs (scripts\make_flash_hex.ps1, gottfa80_roms.cof). Liegen in
+# output_files bzw. lokal in bin\, aber nie auf GitHub (urheberrechtlich geschuetzte ROMs).
+*_roms.jic
+*_roms.bin
+*_roms.hex
+*_roms.map

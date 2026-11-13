@@ -16,5 +16,7 @@ package version_pkg is
 	-- Cyclone 10 -> 4xx. Stand 12.11.2026: "03" (= ausgelieferte v103/v203/v303/v403a).
 	-- Stand 13.11.2026: "04" (80B-Bootanzeige, SD-Diagnose / NO SD CARD, Optionsziffern,
 	-- SD_Card v052..v055), noch nicht released. Getestet: smd_hw11_cyclone_10 (Ralf).
-	constant SW_SUB_80 : string(1 to 2) := "04";
+	-- Stand 13.11.2026: "05" (Spiel-ROMs aus dem Konfigurationsflash, zuerst nur
+	-- smd_hw11_cyclone_10), noch nicht released.
+	constant SW_SUB_80 : string(1 to 2) := "05";
 end package version_pkg;

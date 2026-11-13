@@ -10,6 +10,6 @@
     ReleasePrefix   = 'GottFA80_v110_'   # GottFA80_v110_v<BoardId><SW_SUB_80>.pof
     ReleaseArtifact = 'pof'
     Dormant     = $false
-    VirtualPins = @()
+    VirtualPins = @('FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0')
     Notes       = 'Ausgeliefert als GottFA80_v110_v103.pof - damals mit lokalen Modulkopien im Ordner. Seit 12.11.2026 auf lib_common umgestellt: Verhalten gegenueber v103 geaendert, NICHT hardwaregetestet. Kein zweites Spiel-ROM fuer die spaeten 80B-Spiele (Speicher). Quartus 13.0sp1, VIRTUAL_PIN wirkt dort nicht - die Portliste ist ohnehin voll belegt. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
 }

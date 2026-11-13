@@ -43,6 +43,12 @@ set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to reset_sw
 set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-STATED"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 
+# --- optionale Top-Level-Ports, die dieses Board nicht hat ---
+set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_DCLK
+set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_NCS
+set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_ASDO
+set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_DATA0
+
 # --- pins ---
 set_location_assignment PIN_D9 -to LED_0
 set_location_assignment PIN_C9 -to LED_1
@@ -151,6 +157,7 @@ set_global_assignment -name VHDL_FILE ../../lib_common/count_to_zero.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/byte_to_ascii.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message_80B.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips_80.vhd
 set_global_assignment -name VHDL_FILE ../../top/SYS80_80.vhd
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/SYSTEM_ROM.qip

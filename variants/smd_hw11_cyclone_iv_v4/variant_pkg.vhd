@@ -12,4 +12,8 @@ package variant_pkg is
 	constant HAS_PLL_CLK : boolean := true;
 	-- 80B-Bootanzeige 2x20 Zeichen (lib_common\boot_message_80B.vhd) wie PLuS v7_1.
 	constant HAS_DISP_80B : boolean := true;
+	-- Spiel-ROMs aus dem Konfigurationsflash (lib_common\Flash_ROM.vhd), wenn keine SD-Karte
+	-- antwortet. Braucht die AS-Pins DCLK/nCSO/ASDO/DATA0 als User-I/O (device.tcl, pins.tcl)
+	-- und gottfa80_roms.jic. Seit 13.11.2026 (Cyclone II: nicht moeglich, DCLK/DATA0 fest).
+	constant HAS_FLASH_ROM : boolean := false;
 end package variant_pkg;

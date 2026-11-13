@@ -3,5 +3,8 @@
 #
 # read_the_dips_80.vhd (Entity read_the_dips_80 seit 13.11.2026, 2 Strobes / 5 Returns statt
 # der PLuS-Matrix) braucht nur diese Linie.
+# Flash_ROM.vhd (HAS_FLASH_ROM, 13.11.2026) steht auch in files_plus.tcl. Wegen Error 10481
+# auch bei den Boards ohne Flash-Lader (auch Cyclone II / Quartus 13) noetig.
+set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips_80.vhd
 set_global_assignment -name VHDL_FILE ../../top/SYS80_80.vhd

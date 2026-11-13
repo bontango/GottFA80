@@ -21,6 +21,10 @@ set_global_assignment -name TOP_LEVEL_ENTITY SYS80_80
 set_global_assignment -name FAMILY "Cyclone 10 LP"
 set_global_assignment -name DEVICE 10CL006YE144C8G
 set_global_assignment -name LAST_QUARTUS_VERSION "22.1std.2 Lite Edition"
+set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_DATA1_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_FLASH_NCE_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_DCLK_AFTER_CONFIGURATION "USE AS REGULAR IO"
 
 # --- shared globals ---
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION "13.0 SP1"
@@ -126,6 +130,11 @@ set_location_assignment PIN_88 -to DIP_Return[3]
 set_location_assignment PIN_142 -to DIP_Strobe[0]
 set_location_assignment PIN_32 -to DIP_Strobe[1]
 set_location_assignment PIN_90 -to myTest
+set_location_assignment PIN_12 -to FLASH_DCLK
+set_location_assignment PIN_8 -to FLASH_NCS
+set_location_assignment PIN_6 -to FLASH_ASDO
+set_location_assignment PIN_13 -to FLASH_DATA0
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to MISO
 
 # --- sources ---
 set_global_assignment -name VHDL_FILE ../../lib_common/T65/T65_Pack.vhd
@@ -151,6 +160,7 @@ set_global_assignment -name VHDL_FILE ../../lib_common/count_to_zero.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/byte_to_ascii.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/boot_message_80B.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/Flash_ROM.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/read_the_dips_80.vhd
 set_global_assignment -name VHDL_FILE ../../top/SYS80_80.vhd
 set_global_assignment -name QIP_FILE ../../lib_cyclone_10/SYSTEM_ROM.qip
