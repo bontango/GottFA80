@@ -6,7 +6,7 @@ game roms from SD card; on the PLuS boards also an integrated sound board (GOSOF
 DFPlayer Mini).
 
 This repository was called `GottFA80_PLuS` until November 2026 and held only the PLuS
-boards; it now carries the GottFA80 HW 1.1 (SMD) boards as well.
+boards; it now carries the GottFA80 HW 1.1 (SMD) and the GottFA80S boards as well.
 Hardware and background: <https://lisy.dev/> · releases: <https://lisy.dev/swrep/GottFA80>
 
 ## Boards
@@ -20,6 +20,20 @@ Hardware and background: <https://lisy.dev/> · releases: <https://lisy.dev/swre
 | `plus_hw21x_cyclone_10` | GottFA80 PLuS HW 2.1x, Cyclone 10 | `10CL006YE144C8G` | `61x` | `GottFA80_PLuS_v611.jic` |
 | `plus_hw21x_cyclone_iv_v7` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7 (ESP32-C3) | `EP4CE6F17C8` | `71x` | `GottFA80_PLuS_v711.rbf` |
 | `plus_hw21x_cyclone_iv_v7_1` | GottFA80 PLuS HW 2.1x, Cyclone IV board v7.1 (ESP32-C3) | `EP4CE22F17C8` | `81x` | `GottFA80_PLuS_v811.rbf` (untested) |
+
+### GottFA80S (same top level `top/SYS80.vhd`)
+
+| Variant | Board | Device | Version shown | Last release (old numbering) |
+|---|---|---|---|---|
+| `80s_hw11_cyclone_iv` | GottFA80S HW 1.1, Cyclone IV board v4 | `EP4CE6E22C8` | `52x` | `GottFA80S_v501.jic` |
+| `80s_hw12_cyclone_iv` | GottFA80S HW 1.2, Cyclone IV board v4 | `EP4CE6E22C8` | `53x` | `GottFA80S_v512.jic` |
+| `80s_hw12_cyclone_10` | GottFA80S HW 1.2, Cyclone 10 | `10CL006YE144C8G` | `63x` | `GottFA80S_v612.jic` |
+
+The GottFA80S boards differ from PLuS only in their pinout, a serial port (USB / ESP-01,
+currently unused) and, on HW 1.1, separate SPI buses for SD card and EEPROM
+(`HAS_SHARED_SPI = false`). Since November 2026 they share the PLuS top level and thus show
+the game number at boot with three digits (including the freeplay bit) as PLuS does. Their old version numbers
+(501/511/512/612) collided with PLuS, so they got new board IDs (52, 53, 63).
 
 ### GottFA80 HW 1.1 SMD (top level `top/SYS80_80.vhd`)
 
@@ -61,7 +75,7 @@ A release changes exactly one digit, and all boards follow. The SMD boards show
 ## Layout
 
 ```
-top/SYS80.vhd          top level of the PLuS boards
+top/SYS80.vhd          top level of the PLuS and GottFA80S boards
 top/SYS80_80.vhd       top level of the GottFA80 HW 1.1 (SMD) boards
 lib_common/            all shared modules, version_pkg.vhd, SYS80.sdc
 lib_cyclone_II/        megafunctions for Cyclone II     (identical entity names)
@@ -105,6 +119,11 @@ repository starts there. The three 22.1 boards build the same sources as before.
 Cyclone II board used to carry its own, older copies of most modules and now uses
 `lib_common/` like the others – its next release changes behaviour and needs testing on
 hardware.
+
+The three GottFA80S folders (`GottFA80S_HW1.1_Cyclone_IV_v4`, `GottFA80S_HW1.2_Cyclone_IV_v4`,
+`GottFA80S_HW1.2_Cyclone_10`) followed on 13 November 2026, also with their history starting
+here. They had their own copies of the PLuS top level; now they use it directly. The HW 1.1
+folder no longer built (its project file lacked two sources GOSOF80 needs).
 
 ## License
 

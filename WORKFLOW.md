@@ -3,12 +3,14 @@
 Zwei Linien in einem Baum: **PLuS** (`variants/plus_*`, Top-Level `top/SYS80.vhd`) und
 **GottFA80 HW 1.1 SMD** (`variants/smd_hw11_*`, Top-Level `top/SYS80_80.vhd`, seit
 12.11.2026). Welche Linie, steht als `Line` in `variants/<n>/variant.psd1`.
+**GottFA80S** (`variants/80s_*`, seit 13.11.2026) gehört zur Linie `plus`: gleiches Top-Level,
+nur eigene Pins, `BOARD_ID`, `ReleasePrefix = 'GottFA80S_'` und Changelog `bin/80S/changelog.txt`.
 
 ## Was ändern → wo
 
 | Ich will … | Datei |
 |---|---|
-| Logik ändern (PLuS) | `top/SYS80.vhd`, `lib_common/*.vhd` |
+| Logik ändern (PLuS und 80S) | `top/SYS80.vhd`, `lib_common/*.vhd` |
 | Logik ändern (SMD) | `top/SYS80_80.vhd`, `lib_common/*.vhd` |
 | eine neue `.vhd` hinzufügen | Datei nach `lib_common/` **und** Eintrag in `scripts/files_common.tcl` (beide Linien), `files_plus.tcl` oder `files_smd.tcl` |
 | eine Board-Eigenschaft schalten | Konstante in `variants/<n>/variant_pkg.vhd` + paarweises `if … generate` im Top-Level |
@@ -19,6 +21,7 @@ Zwei Linien in einem Baum: **PLuS** (`variants/plus_*`, Top-Level `top/SYS80.vhd
 | Timing-Constraints | `lib_common/SYS80.sdc` (gilt für alle, außer eine Variante hat eine eigene `variants/<n>/SYS80.sdc` – derzeit nur `smd_hw11_cyclone_iv_v4`) |
 | Megafunction (ROM/RAM) neu erzeugen | in `lib_cyclone_IV/`, `lib_cyclone_10/` **und** (falls SMD sie nutzt) `lib_cyclone_II/` mit Quartus 13.0sp1, Entity-Namen gleich lassen |
 | Release PLuS | `SW_SUB` in `lib_common/version_pkg.vhd` +1, dann `scripts/release.ps1 -Note "…" -Variants plus_…` |
+| Release 80S | gleiches `SW_SUB` wie PLuS; `scripts/release.ps1 -Note "…" -Variants 80s_…` (oder zusammen mit `plus_…`, je ein Changelog-Eintrag) |
 | Release SMD | `SW_SUB_80` in `lib_common/version_pkg.vhd` +1, dann `scripts/release.ps1 -Note "…" -Variants smd_…` |
 
 **`variants/<n>/SYS80.qsf` nie von Hand ändern.** Schreibt Quartus aus der IDE etwas
@@ -50,7 +53,9 @@ Je Linie getrennt – `release.ps1` lehnt eine Auswahl aus beiden Linien ab.
 2. `powershell -File scripts\release.ps1 -Note "was sich ändert" -Variants <die Boards der Linie>`
    → baut sie und legt `bin/<BinFolder>/<ReleasePrefix>v<BoardId><Sub>.<ext>` ab:
    PLuS `bin/PLuS/…/GottFA80_PLuS_v512.jic`, SMD `bin/v110/GottFA80_v110_v204.jic` bzw. `.pof`.
-   Schreibt `bin/PLuS/changelog.txt` bzw. `bin/v110/Changelog.txt` mit SHA-256 fort.
+   80S `bin/80S/HW_1.2/Cyclone_IV/GottFA80S_v532.jic`.
+   Schreibt `bin/PLuS/changelog.txt`, `bin/80S/changelog.txt` (Schlüssel `Changelog` in
+   `variant.psd1`) bzw. `bin/v110/Changelog.txt` mit SHA-256 fort.
 3. In `VARIANTEN.md` eintragen, welches Board **auf Hardware** getestet wurde.
 
 ## Die alten Projektordner
@@ -64,9 +69,10 @@ Ebenso die SMD-Ordner `GottFA80_HW1.1SMD_Cyclone_II`, `…_Cyclone_IV_v3`, `…_
 `…_Cyclone_10` seit 12.11.2026 (Sicherung `archive/<Ordner>_2026-11-12.zip`).
 `GottFA80_HW1.1SMD_Cyclone_IV_v3_MPF` ist ein Duplikat von v3 und wurde nicht übernommen.
 
-Die GottFA80S-Ordner nebenan sind (noch) eigenständige Projekte und benutzen
-`lib_common/` direkt per `../lib_common`. **Eine Änderung in `lib_common/` wirkt also auch
-dort.** Bestandsaufnahme: `docs/BESTANDSAUFNAHME_80_80S.md`.
+Ebenso die GottFA80S-Ordner `GottFA80S_HW1.1_Cyclone_IV_v4`, `GottFA80S_HW1.2_Cyclone_IV_v4`,
+`GottFA80S_HW1.2_Cyclone_10` seit 13.11.2026 (Sicherung `archive/<Ordner>_2026-11-13.zip`).
+Sie zeigen weiter per `../lib_common` auf den Baum – eine Änderung dort wirkt also auch in
+diesen Ordnern, ist aber kein Grund mehr, sie gegenzuprüfen. Damit ist kein flacher Ordner mehr aktiv.
 
 ## Fallstricke
 

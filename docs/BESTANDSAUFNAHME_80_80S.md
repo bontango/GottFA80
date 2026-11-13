@@ -3,6 +3,12 @@
 > **Nachtrag 12.11.2026:** Die vier GottFA80-SMD-Ordner (ohne `_MPF`) sind jetzt im Baum –
 > `variants/smd_hw11_*`, Top-Level `top/SYS80_80.vhd`, Cyclone II auf `lib_common` umgestellt.
 > Ergebnis und Abnahme in `VARIANTEN.md`. Offen bleiben die drei 80S-Ordner.
+>
+> **Nachtrag 13.11.2026:** Auch die drei 80S-Ordner sind im Baum – als PLuS-Varianten
+> `variants/80s_hw11_cyclone_iv`, `80s_hw12_cyclone_iv`, `80s_hw12_cyclone_10` mit dem
+> gemeinsamen `top/SYS80.vhd` (Spielnummer dreistellig mit Freeplay-Bit wie PLuS,
+> neue BOARD_IDs 52/53/63, HW 1.1 mit `HAS_SHARED_SPI = false`). Kein flacher Ordner ist mehr
+> aktiv. Abnahme in `VARIANTEN.md`.
 
 Die PLuS-Varianten sind seit 04.11.2026 im gemeinsamen Sourcebaum (`top/`, `variants/plus_*`).
 Die acht Projektordner der GottFA80 (SMD) und GottFA80S liegen noch flach daneben, sind
