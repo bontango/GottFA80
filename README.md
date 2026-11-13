@@ -25,6 +25,7 @@ Hardware and background: <https://lisy.dev/> · releases: <https://lisy.dev/swre
 
 | Variant | Board | Device | Version shown | Last release (old numbering) |
 |---|---|---|---|---|
+| `80s_hw10_cyclone_iv` | GottFA80S HW 1.1 modified (CS_SDcard wired to pin 42, game ROMs from the config flash), Cyclone IV board v4 | `EP4CE6E22C8` | `54x` | – (new, untested) |
 | `80s_hw11_cyclone_iv` | GottFA80S HW 1.1, Cyclone IV board v4 | `EP4CE6E22C8` | `52x` | `GottFA80S_v501.jic` |
 | `80s_hw12_cyclone_iv` | GottFA80S HW 1.2, Cyclone IV board v4 | `EP4CE6E22C8` | `53x` | `GottFA80S_v512.jic` |
 | `80s_hw12_cyclone_10` | GottFA80S HW 1.2, Cyclone 10 | `10CL006YE144C8G` | `63x` | `GottFA80S_v612.jic` |
