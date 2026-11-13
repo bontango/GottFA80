@@ -11,5 +11,5 @@
     Changelog   = '80S\changelog.txt'   # statt PLuS\changelog.txt (release.ps1)
     Dormant     = $false
     VirtualPins = @('Debug[0]', 'Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'MOSI', 'MISO', 'CLK')
-    Notes       = 'Seit 13.11.2026. GottFA80S HW 1.1 mit Drahtbruecke: CS_SDcard von PIN_11 (neben DCLK, Error 169182) auf PIN_42, Serial_RX (ungenutzter Eingang) auf PIN_11. Dafuer HAS_FLASH_ROM (Spiel-ROMs aus dem EPCS16, gottfa80_roms.jic). SD_MISO (PIN_24, Takteingang) hat keinen internen Pull-up - externen vorsehen. Sonst wie 80s_hw11_cyclone_iv. NICHT hardwaregetestet.'
+    Notes       = 'Seit 13.11.2026. GottFA80S HW 1.1 mit Drahtbruecke: CS_SDcard von PIN_11 (neben DCLK, Error 169182) auf PIN_42, Serial_RX (ungenutzter Eingang) auf PIN_11. Dafuer HAS_FLASH_ROM (Spiel-ROMs aus dem EPCS16, gottfa80_roms.jic). SD_MISO (PIN_24, Takteingang) hat keinen internen Pull-up - externen vorsehen. Sonst wie 80s_hw11_cyclone_iv. HW-getestet 13.11.2026 (Ralf, Monte Carlo, Stand 9f74715): Flash-ROMs mit und ohne SD-Karte, 80B-Bootanzeige GOTTFA80S.'
 }
