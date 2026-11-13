@@ -151,6 +151,7 @@ set_location_assignment PIN_12 -to FLASH_DCLK
 set_location_assignment PIN_8 -to FLASH_NCS
 set_location_assignment PIN_6 -to FLASH_ASDO
 set_location_assignment PIN_13 -to FLASH_DATA0
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to MISO
 
 # --- sources ---
 set_global_assignment -name VHDL_FILE ../../lib_common/T65/T65_Pack.vhd

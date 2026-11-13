@@ -90,4 +90,5 @@ set_location_assignment PIN_H1 -to FLASH_DCLK
 set_location_assignment PIN_D2 -to FLASH_NCS
 set_location_assignment PIN_C1 -to FLASH_ASDO
 set_location_assignment PIN_H2 -to FLASH_DATA0
-# ohne SD-Karte liest MISO sicher FF -name WEAK_PULL_UP_RESISTOR ON -to MISO
+# ohne SD-Karte liest MISO sicher FF (sonst erkennt SD_Card evtl. eine Karte, die nicht da ist)
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to MISO
