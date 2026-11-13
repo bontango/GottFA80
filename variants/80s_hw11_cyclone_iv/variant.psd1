@@ -1,0 +1,15 @@
+@{
+    Name        = '80s_hw11_cyclone_iv'
+    Title       = 'GottFA80S HW 1.1 mit Cyclone IV Board v4 (EP4CE6E22C8)'
+    BoardId     = '52'           # zweistellig, steht auch in variant_pkg.vhd
+    Line        = 'plus'         # files_plus.tcl, Top-Level top\SYS80.vhd (gleiches Top wie PLuS)
+    RtlFamily   = 'cyclone_iv'      # welche files_<familie>.tcl (lib_cyclone_IV / lib_cyclone_10)
+    Options     = @()
+    BinFolder   = '80S/HW_1.1/Cyclone_IV'
+    ReleasePrefix   = 'GottFA80S_'   # GottFA80S_v<BoardId><SW_SUB>.<ext>
+    ReleaseArtifact = 'jic'
+    Changelog   = '80S\changelog.txt'   # statt PLuS\changelog.txt (release.ps1)
+    Dormant     = $false
+    VirtualPins = @('Debug[0]', 'Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0', 'MOSI', 'MISO', 'CLK')
+    Notes       = 'Bisher ausgeliefert als GottFA80S_v501.jic (bin/80S/HW_1.1/Cyclone_IV). Getrennte SPI-Busse (HAS_SHARED_SPI = false). Serial-Namen in pins.tcl getauscht (Richtung wie im alten Ordner). Im Baumstand NICHT hardwaregetestet.'
+}

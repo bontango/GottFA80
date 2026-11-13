@@ -1,8 +1,6 @@
-# files_plus.tcl - Quellen nur der PLuS-Linie (Line = 'plus' in variant.psd1).
+# files_plus.tcl - Quellen nur der PLuS-Linie (Line = 'plus' in variant.psd1),
+# seit 13.11.2026 auch der GottFA80S-Boards (variants\80s_*).
 # Pfade sind relativ zum Projektverzeichnis variants\<n>\.
-#
-# lib_common\ wird (Stand 11/2026) auch von den noch nicht umgebauten
-# GottFA80S-Ordnern direkt per ../lib_common benutzt.
 set_global_assignment -name VHDL_FILE ../../lib_common/uart_clk_gen.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/attract.vhd
 set_global_assignment -name VHDL_FILE ../../lib_common/dac.vhd

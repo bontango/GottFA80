@@ -10,6 +10,9 @@
 # Linie folgen:
 #   PLuS (Line = plus): BoardId zweistellig & SW_SUB (eine Ziffer)
 #                       bin\<BinFolder>\GottFA80_PLuS_v<BoardId><SW_SUB>.jic|.rbf
+#                       GottFA80S (variants\80s_*, seit 13.11.2026 ebenfalls Line = plus):
+#                       bin\80S\HW_1.x\<Chip>\GottFA80S_v<BoardId><SW_SUB>.jic,
+#                       Changelog bin\80S\changelog.txt
 #   SMD  (Line = smd) : BoardId eine Ziffer & SW_SUB_80 (zwei Ziffern)
 #                       bin\v110\GottFA80_v110_v<BoardId><SW_SUB_80>.jic|.pof
 # Der Dateiname beginnt mit ReleasePrefix aus variant.psd1. -Variants mit Varianten
@@ -82,20 +85,26 @@ foreach ($dir in $dirs) {
     Copy-Item $src $dest -Force
 
     $sha = (Get-FileHash $dest -Algorithm SHA256).Hash.Substring(0, 16)
-    $done += [pscustomobject]@{ Variant = $dir.Name; Version = $ver; File = "$($meta.BinFolder)/$(Split-Path $dest -Leaf)"; Sha = $sha }
+    # Changelog: Default der Linie, eine Variante kann ihn mit Changelog = '...' in
+    # variant.psd1 umlenken (GottFA80S: bin\80S\changelog.txt, gleiche Linie wie PLuS).
+    $logRel = if ($meta.Changelog) { $meta.Changelog } else { $line.Log }
+    $done += [pscustomobject]@{ Variant = $dir.Name; Version = $ver; File = "$($meta.BinFolder)/$(Split-Path $dest -Leaf)"; Sha = $sha; Log = $logRel }
 }
 
-# Ein Changelog je Linie: PLuS bin\PLuS\changelog.txt (aeltere Eintraege in
-# bin\PLuS\HW2.1x\changelog.txt), SMD bin\v110\Changelog.txt.
-$log   = Join-Path $BinRoot $line.Log
+# Changelog je Linie: PLuS bin\PLuS\changelog.txt (aeltere Eintraege in
+# bin\PLuS\HW2.1x\changelog.txt), SMD bin\v110\Changelog.txt, GottFA80S
+# bin\80S\changelog.txt (Changelog in variant.psd1). Ein Eintrag je Changelog.
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
-$head  = (($done | Sort-Object Version | ForEach-Object { "v$($_.Version)" }) -join '/')
-$lines = @('', "-- $head $Note", "   $stamp")
-foreach ($d in ($done | Sort-Object Variant)) {
-    $lines += "   {0,-22} {1,-4} {2}  sha256:{3}" -f $d.Variant, $d.Version, $d.File, $d.Sha
+foreach ($grp in ($done | Group-Object Log)) {
+    $log   = Join-Path $BinRoot $grp.Name
+    $head  = (($grp.Group | Sort-Object Version | ForEach-Object { "v$($_.Version)" }) -join '/')
+    $lines = @('', "-- $head $Note", "   $stamp")
+    foreach ($d in ($grp.Group | Sort-Object Variant)) {
+        $lines += "   {0,-22} {1,-4} {2}  sha256:{3}" -f $d.Variant, $d.Version, $d.File, $d.Sha
+    }
+    Add-Content -Path $log -Value $lines -Encoding UTF8
+    Write-Host "In $log fortgeschrieben." -ForegroundColor Green
 }
-Add-Content -Path $log -Value $lines -Encoding UTF8
 
-$done | Format-Table -AutoSize
-Write-Host "In $log fortgeschrieben." -ForegroundColor Green
+$done | Select-Object Variant, Version, File, Sha | Format-Table -AutoSize
 Write-Host "Nicht vergessen: in VARIANTEN.md eintragen, welche Variante tatsaechlich auf Hardware getestet wurde." -ForegroundColor Yellow
