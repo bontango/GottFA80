@@ -84,4 +84,12 @@ set_location_assignment PIN_33 -to DIP_Strobe[2]
 set_location_assignment PIN_30 -to DIP_Strobe[3]
 set_location_assignment PIN_2 -to Audio_RX
 set_location_assignment PIN_7 -to Sound
-set_location_assignment PIN_11 -to Debug[0]
+# PIN_11 = Debug[0] entfallen (13.11.2026): Pin 11 liegt neben DCLK (PIN_12, FLASH_DCLK), dort ist kein
+# schaltender 3,3-V-Ausgang erlaubt (Error 169182). Debug[0] ist jetzt VIRTUAL_PIN (variant.psd1).
+# Konfigurationsflash EPCS16 als zweite Quelle der Spiel-ROMs (HAS_FLASH_ROM, 13.11.2026),
+# AS-Pins E144 wie smd_hw11_cyclone_10 / GottFA1.
+set_location_assignment PIN_12 -to FLASH_DCLK
+set_location_assignment PIN_8 -to FLASH_NCS
+set_location_assignment PIN_6 -to FLASH_ASDO
+set_location_assignment PIN_13 -to FLASH_DATA0
+# ohne SD-Karte liest MISO sicher FF -name WEAK_PULL_UP_RESISTOR ON -to MISO

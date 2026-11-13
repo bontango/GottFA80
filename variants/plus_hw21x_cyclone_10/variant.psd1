@@ -9,6 +9,6 @@
     ReleasePrefix   = 'GottFA80_PLuS_'   # GottFA80_PLuS_v<BoardId><SW_SUB>.<ext>
     ReleaseArtifact = 'jic'
     Dormant     = $false
-    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
+    VirtualPins = @('Debug[0]', 'Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
     Notes       = 'Ausgeliefert als GottFA80_PLuS_v611.jic. Pinout wie plus_hw21x_cyclone_iv bis auf 6 Lagen (U6_PA[0]/[3], DIP_Strobe[1]/[3], DIP_Return[2], disp_segments[14]).'
 }

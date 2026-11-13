@@ -21,6 +21,10 @@ set_global_assignment -name TOP_LEVEL_ENTITY SYS80
 set_global_assignment -name FAMILY "Cyclone 10 LP"
 set_global_assignment -name DEVICE 10CL006YE144C8G
 set_global_assignment -name LAST_QUARTUS_VERSION "22.1std.2 Lite Edition"
+set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_DATA1_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_FLASH_NCE_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name RESERVE_DCLK_AFTER_CONFIGURATION "USE AS REGULAR IO"
 
 # --- shared globals ---
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION "13.0 SP1"
@@ -44,15 +48,12 @@ set_global_assignment -name RESERVE_ALL_UNUSED_PINS_NO_OUTPUT_GND "AS INPUT TRI-
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 
 # --- optionale Top-Level-Ports, die dieses Board nicht hat ---
+set_instance_assignment -name VIRTUAL_PIN ON -to Debug[0]
 set_instance_assignment -name VIRTUAL_PIN ON -to Debug[1]
 set_instance_assignment -name VIRTUAL_PIN ON -to Debug[2]
 set_instance_assignment -name VIRTUAL_PIN ON -to FA_RXD
 set_instance_assignment -name VIRTUAL_PIN ON -to FA_TXD
 set_instance_assignment -name VIRTUAL_PIN ON -to FA_CTRL_REQ
-set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_DCLK
-set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_NCS
-set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_ASDO
-set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_DATA0
 set_instance_assignment -name VIRTUAL_PIN ON -to Serial_RX
 set_instance_assignment -name VIRTUAL_PIN ON -to Serial_TX
 set_instance_assignment -name VIRTUAL_PIN ON -to SD_MOSI
@@ -146,7 +147,10 @@ set_location_assignment PIN_33 -to DIP_Strobe[2]
 set_location_assignment PIN_32 -to DIP_Strobe[3]
 set_location_assignment PIN_2 -to Audio_RX
 set_location_assignment PIN_7 -to Sound
-set_location_assignment PIN_11 -to Debug[0]
+set_location_assignment PIN_12 -to FLASH_DCLK
+set_location_assignment PIN_8 -to FLASH_NCS
+set_location_assignment PIN_6 -to FLASH_ASDO
+set_location_assignment PIN_13 -to FLASH_DATA0
 
 # --- sources ---
 set_global_assignment -name VHDL_FILE ../../lib_common/T65/T65_Pack.vhd

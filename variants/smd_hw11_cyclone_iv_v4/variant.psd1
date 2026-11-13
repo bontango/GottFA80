@@ -10,6 +10,6 @@
     ReleasePrefix   = 'GottFA80_v110_'   # GottFA80_v110_v<BoardId><SW_SUB_80>.jic
     ReleaseArtifact = 'jic'
     Dormant     = $false
-    VirtualPins = @('FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0')
+    VirtualPins = @()
     Notes       = 'Ausgeliefert als GottFA80_v110_v303.jic. CPU-Takt aus der PLL cpu_clock_gen, 80B-Bootanzeige wie PLuS v7_1 (seit 12.11.2026, nicht hardwaregetestet). Eigene SYS80.sdc (kein cpu_clk_gen-Takt).'
 }

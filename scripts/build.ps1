@@ -75,6 +75,21 @@ try {
         if (-not (Test-Path $jic)) { throw "keine .jic erzeugt: $jic" }
         # Geraetetypische Groesse (EPCS16): Cyclone IV 2.097.375 B, Cyclone 10 2.097.377 B.
         "  {0}  {1:N0} Byte" -f (Split-Path $jic -Leaf), (Get-Item $jic).Length
+
+        # Mit Spiel-ROMs (HAS_FLASH_ROM, seit 13.11.2026): gottfa80_roms.cof = .sof + ROM-Bereich
+        # ab 0x080000. Die HEX-Datei kommt aus scripts\make_flash_hex.ps1 -Out
+        # output_files\gottfa80_roms.hex und enthaelt urheberrechtlich geschuetzte ROMs
+        # (.gitignore). Fehlt sie, gibt es nur einen Hinweis.
+        if (Test-Path 'gottfa80_roms.cof') {
+            if (Test-Path 'output_files\gottfa80_roms.hex') {
+                & "$bin\quartus_cpf.exe" -c 'gottfa80_roms.cof'
+                if ($LASTEXITCODE -ne 0) { throw "quartus_cpf gottfa80_roms.cof ist fehlgeschlagen ($LASTEXITCODE)" }
+                $rjic = Join-Path $VarDir 'output_files\gottfa80_roms.jic'
+                "  {0}  {1:N0} Byte" -f (Split-Path $rjic -Leaf), (Get-Item $rjic).Length
+            } else {
+                Write-Host "  keine output_files\gottfa80_roms.hex - _roms.jic uebersprungen (make_flash_hex.ps1 -Out ...)" -ForegroundColor Yellow
+            }
+        }
     }
 }
 finally { Pop-Location }

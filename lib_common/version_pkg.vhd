@@ -8,9 +8,11 @@
 -- Stand 07.11.2026: 2 (SD_Card v052 Warmstart-Fix, 80B-Anzeige v7_1), noch nicht released.
 -- Stand 13.11.2026: 3 (NO SD CARD in der 80B-Fehlerzeile, GottFA80S im Baum: 523/533/633),
 --                   noch nicht released.
+-- Stand 13.11.2026: 5 (Spiel-ROMs aus dem Konfigurationsflash auf allen Boards mit Platz und
+--                   freien AS-Pins, gottfa80_roms.jic; einheitlich mit SMD "05"), nicht released.
 package version_pkg is
 	-- PLuS und GottFA80S (top\SYS80.vhd)
-	constant SW_SUB : character := '3';
+	constant SW_SUB : character := '5';
 	-- GottFA80 HW 1.1 SMD (top\SYS80_80.vhd): Anzeige = BOARD_ID (eine Ziffer) & SW_SUB_80,
 	-- Cyclone II -> 1xx, Cyclone IV Board v3.x -> 2xx, Cyclone IV Board v4.x -> 3xx,
 	-- Cyclone 10 -> 4xx. Stand 12.11.2026: "03" (= ausgelieferte v103/v203/v303/v403a).

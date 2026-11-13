@@ -9,6 +9,6 @@
     ReleasePrefix   = 'GottFA80_PLuS_'   # GottFA80_PLuS_v<BoardId><SW_SUB>.<ext>
     ReleaseArtifact = 'jic'
     Dormant     = $false
-    VirtualPins = @('FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
+    VirtualPins = @('Debug[0]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
     Notes       = 'Ausgeliefert als GottFA80_PLuS_v501.jic (bin\PLuS\HW2.0x\Cyclone_IV). Bis 04.11.2026 nicht in Git - die Historie beginnt mit dem Umbau, Sicherung: archive\GottFA80_PLuS_HW201_Cyclone_IV_v4_2026-11-04.zip. Fuehrt Debug[0..2] auf PIN_11/7/2 heraus; Sound PIN_75, Audio_RX PIN_85.'
 }
