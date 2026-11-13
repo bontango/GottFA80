@@ -45,6 +45,13 @@
 -- 07.11.2026 Spiel-ROMs aus dem Konfigurationsflash (HAS_FLASH_ROM, bisher nur v7_1),
 -- nach SternFA x.30: antwortet keine SD-Karte, laedt lib_common\Flash_ROM.vhd dasselbe
 -- Spiel aus dem EPCS16 (ab 0x080000, Verzeichnis + deduplizierte 2-KB-Bloecke).
+--
+-- 13.11.2026 GottFA80S (HW 1.1 / HW 1.2, variants\80s_*) laeuft jetzt ebenfalls mit diesem
+-- Top-Level (vorher eigene Kopien in den flachen Ordnern GottFA80S_*). Dazu kamen:
+-- Serial_RX/Serial_TX (USB/ESP-01 auf 80S, logisch unbenutzt, TX auf Ruhepegel) und
+-- HAS_SHARED_SPI: HW 1.1 hat getrennte SPI-Busse fuer SD-Karte (SD_*) und EEprom (EE_*),
+-- alle anderen Boards den gemeinsamen Bus MOSI/MISO/CLK. Was ein Board nicht hat, ist
+-- VIRTUAL_PIN (variant.psd1).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -85,7 +92,14 @@ entity SYS80 is
 		MOSI			: 	out 	std_logic;
 		MISO			: 	in 	std_logic;
 		CLK			: 	out 	std_logic;
-		
+		-- getrennte SPI-Busse (nur GottFA80S HW 1.1, HAS_SHARED_SPI = false)
+		SD_MOSI		: 	out 	std_logic;
+		SD_MISO		: 	in 	std_logic;
+		SD_CLK		: 	out 	std_logic;
+		EE_MOSI		: 	out 	std_logic;
+		EE_MISO		: 	in 	std_logic;
+		EE_CLK		: 	out 	std_logic;
+
 		-- DIp Switch Game selectOptions
 		DIP_Strobe	:	out 	std_logic_vector(3 downto 0);
 		DIP_Return	:	in 	std_logic_vector(3 downto 0);
@@ -97,6 +111,10 @@ entity SYS80 is
 
 		-- debug
 		Debug			:	out 	std_logic_vector(2 downto 0);
+
+		-- serial (USB oder ESP-01), nur GottFA80S; logisch unbenutzt
+		Serial_RX		: 	in 	std_logic;
+		Serial_TX		: 	out 	std_logic;
 
 		-- FA-Control: ESP32-C3 auf X7 des Cyclone-IV-Boards v7 (HAS_ESP32).
 		-- Auf allen anderen Boards VIRTUAL_PIN (variant.psd1).
@@ -241,7 +259,10 @@ signal address_eeprom	:  std_logic_vector(6 downto 0);
 signal data_eeprom	:  std_logic_vector(7 downto 0);
 signal wr_ram			:  std_logic;
 signal EEprom_MOSI	:	std_logic; 
-signal EEprom_CLK		:	std_logic; 
+signal EEprom_CLK		:	std_logic;
+-- MISO je Teilnehmer: gemeinsamer Bus (HAS_SHARED_SPI) oder getrennte Busse (80S HW 1.1)
+signal sd_spi_miso	:	std_logic;
+signal ee_spi_miso	:	std_logic;
 signal EEprom_active	:	std_logic; 
 
 -- init & boot message helper
@@ -378,6 +399,8 @@ LED_ON <= '0'; --RTH
 
 -- Debug war bisher nie zugewiesen (Warning 10541, implizit '0'); jetzt explizit.
 Debug <= (others => '0');
+-- Serial (nur GottFA80S): wie in den alten 80S-Ordnern ohne Funktion, TX auf UART-Ruhepegel
+Serial_TX <= '1';
 
 
 ----------------------
@@ -572,11 +595,30 @@ slam <= '0' when opt_slam_fix_open = '1' else --slam open for late 80B games
 		  U5_PA_7; --real slam
 
 ---------------------
--- shared SPI bus
+-- shared SPI bus (HAS_SHARED_SPI) bzw. getrennte Busse (GottFA80S HW 1.1)
 ----------------------
---SD card only at start of game
-MOSI <= SDcard_MOSI when reset_l = '0' else EEprom_MOSI;
-CLK <= SDcard_CLK when reset_l = '0' else EEprom_CLK;
+gen_shared_spi: if HAS_SHARED_SPI generate
+	--SD card only at start of game
+	MOSI <= SDcard_MOSI when reset_l = '0' else EEprom_MOSI;
+	CLK <= SDcard_CLK when reset_l = '0' else EEprom_CLK;
+	sd_spi_miso <= MISO;
+	ee_spi_miso <= MISO;
+	SD_MOSI <= '0';
+	SD_CLK  <= '0';
+	EE_MOSI <= '0';
+	EE_CLK  <= '0';
+end generate gen_shared_spi;
+
+gen_split_spi: if not HAS_SHARED_SPI generate
+	SD_MOSI <= SDcard_MOSI;
+	SD_CLK  <= SDcard_CLK;
+	EE_MOSI <= EEprom_MOSI;
+	EE_CLK  <= EEprom_CLK;
+	sd_spi_miso <= SD_MISO;
+	ee_spi_miso <= EE_MISO;
+	MOSI <= '0';
+	CLK  <= '0';
+end generate gen_split_spi;
 
 ---------------------
 -- count ints
@@ -619,7 +661,7 @@ port map(
    i_Rst_L  => not readingdips,     -- FPGA Reset & dip read finished
 	-- PMOD SPI Interface
    o_SPI_Clk  => SDcard_CLK,
-   i_SPI_MISO => MISO,
+   i_SPI_MISO => sd_spi_miso,
    o_SPI_MOSI => SDcard_MOSI,
    o_SPI_CS_n => CS_SDcard,	
 	-- selection
@@ -1011,7 +1053,7 @@ port map(
 	i_Rst_L  => reset_l,
 	-- PMOD SPI Interface
    o_SPI_Clk  => EEprom_CLK,
-   i_SPI_MISO => MISO,
+   i_SPI_MISO => ee_spi_miso,
    o_SPI_MOSI => EEprom_MOSI,
    o_SPI_CS_n => CS_EEprom,
 	-- selection

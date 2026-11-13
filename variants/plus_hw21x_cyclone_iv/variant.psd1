@@ -9,6 +9,6 @@
     ReleasePrefix   = 'GottFA80_PLuS_'   # GottFA80_PLuS_v<BoardId><SW_SUB>.<ext>
     ReleaseArtifact = 'jic'
     Dormant     = $false
-    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0')
+    VirtualPins = @('Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
     Notes       = 'Ausgeliefert als GottFA80_PLuS_v511.jic. Nur Debug[0] (PIN_11) ist herausgefuehrt; PIN_7/PIN_2 sind hier Sound/Audio_RX (Korrektur v511).'
 }

@@ -51,6 +51,14 @@ set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_DCLK
 set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_NCS
 set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_ASDO
 set_instance_assignment -name VIRTUAL_PIN ON -to FLASH_DATA0
+set_instance_assignment -name VIRTUAL_PIN ON -to Serial_RX
+set_instance_assignment -name VIRTUAL_PIN ON -to Serial_TX
+set_instance_assignment -name VIRTUAL_PIN ON -to SD_MOSI
+set_instance_assignment -name VIRTUAL_PIN ON -to SD_MISO
+set_instance_assignment -name VIRTUAL_PIN ON -to SD_CLK
+set_instance_assignment -name VIRTUAL_PIN ON -to EE_MOSI
+set_instance_assignment -name VIRTUAL_PIN ON -to EE_MISO
+set_instance_assignment -name VIRTUAL_PIN ON -to EE_CLK
 
 # --- pins ---
 set_location_assignment PIN_E1 -to clk_50

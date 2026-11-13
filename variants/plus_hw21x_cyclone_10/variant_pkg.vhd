@@ -15,4 +15,7 @@ package variant_pkg is
 	-- Spiel-ROMs aus dem Konfigurationsflash (lib_common\Flash_ROM.vhd), wenn keine SD-Karte
 	-- antwortet. Braucht die AS-Pins DCLK/nCSO/ASDO/DATA0 als User-I/O. Seit 07.11.2026.
 	constant HAS_FLASH_ROM : boolean := false;
+	-- Gemeinsamer SPI-Bus MOSI/MISO/CLK fuer SD-Karte und EEprom. false nur bei GottFA80S
+	-- HW 1.1 (getrennte Busse SD_*/EE_*), s. top\SYS80.vhd. Seit 13.11.2026.
+	constant HAS_SHARED_SPI : boolean := true;
 end package variant_pkg;

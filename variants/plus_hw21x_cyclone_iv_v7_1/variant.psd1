@@ -12,6 +12,6 @@
     ReleaseArtifact = 'rbf'
     Dormant     = $false
     # Debug[1..2] wie auf HW2.1x nicht herausgefuehrt; FA_* liegen auf echten Pins.
-    VirtualPins = @('Debug[1]', 'Debug[2]')
+    VirtualPins = @('Debug[1]', 'Debug[2]', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
     Notes       = 'Neu 06.11.2026: Board v7.1 mit EP4CE22 - FA-Control (HAS_ESP32) UND integriertes Soundboard (HAS_SOUNDBOARD). Pins aus v7 plus Neubelegung v7.1 (Piggyback-Doku 12.7); U4_PB[7]/[5] wegen der Takteingaenge A8/A9 auf N14/R16, dafuer zwei Drahtbruecken (pins.tcl). NICHT hardwaregetestet.'
 }

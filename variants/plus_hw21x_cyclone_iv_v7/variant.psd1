@@ -12,6 +12,6 @@
     ReleaseArtifact = 'rbf'
     Dormant     = $false
     # Debug[1..2] wie auf HW2.1x nicht herausgefuehrt; FA_* liegen auf echten Pins.
-    VirtualPins = @('Debug[1]', 'Debug[2]', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0')
+    VirtualPins = @('Debug[1]', 'Debug[2]', 'FLASH_DCLK', 'FLASH_NCS', 'FLASH_ASDO', 'FLASH_DATA0', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
     Notes       = 'Neu 04.11.2026: FA-Control (HAS_ESP32) statt integriertem Soundboard (HAS_SOUNDBOARD = false). Pinout aus plus_hw21x_cyclone_iv ueber pins_Cyclone_II_IV_10.xlsx umgesetzt. Hardwaregetestet 06.11.2026 (Ralf): Connect/Release, Monitor-Displays, Namensdateien GottFA80. Erstes Release v711 (.rbf).'
 }
