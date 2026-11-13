@@ -14,7 +14,7 @@ package variant_pkg is
 	-- Integriertes Soundboard GOSOF80 (lib_common\GOSOF80.vhd).
 	constant HAS_SOUNDBOARD : boolean := true;
 	-- 80B-Anzeige (boot_message_80B / FA-Control ASCII), bisher nur v7_1 - s. top\SYS80.vhd.
-	constant HAS_DISP_80B : boolean := false;
+	constant HAS_DISP_80B : boolean := true;
 	-- Spiel-ROMs aus dem Konfigurationsflash (lib_common\Flash_ROM.vhd), wenn keine SD-Karte
 	-- antwortet. Braucht die AS-Pins DCLK/nCSO/ASDO/DATA0 als User-I/O. Seit 07.11.2026.
 	constant HAS_FLASH_ROM : boolean := true;
