@@ -9,6 +9,16 @@ This repository was called `GottFA80_PLuS` until November 2026 and held only the
 boards; it now carries the GottFA80 HW 1.1 (SMD) and the GottFA80S boards as well.
 Hardware and background: <https://lisy.dev/> · releases: <https://lisy.dev/swrep/GottFA80>
 
+## User manuals
+
+**Read online:** <https://bontango.github.io/GottFA80/>
+
+- [GottFA80 HW 1.1 (SMD) user manual](https://bontango.github.io/GottFA80/GottFA80_user_manual.html)
+- [GottFA80S user manual](https://bontango.github.io/GottFA80/GottFA80S_user_manual.html)
+- [GottFA80_PLuS user manual](https://bontango.github.io/GottFA80/GottFA80_PLuS_user_manual.html)
+
+The manuals describe the current source tree (software x.x5 / x.05) and are English only.
+
 ## Boards
 
 ### GottFA80 PLuS (top level `top/SYS80.vhd`)
