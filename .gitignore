@@ -1,6 +1,5 @@
-# Whitelist: im Wurzelordner liegen auch die alten Projektordner - PLuS (Backup seit
-# 04.11.2026), GottFA80-SMD (seit 12.11.2026) und GottFA80S (seit 13.11.2026) - alle nicht
-# mehr benutzen.
+# Whitelist: im Wurzelordner liegen auch bin/ (Releases), archive/ (ZIPs der alten
+# Projektordner, geloescht am 14.11.2026) und lokale Arbeitsnotizen.
 # Ins Repo gehoert nur der gemeinsame Sourcebaum.
 /*
 
