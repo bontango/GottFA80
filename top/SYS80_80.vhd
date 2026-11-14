@@ -377,8 +377,8 @@ begin
 		LD1        => d80_ld1,
 		LD2        => d80_ld2,
 		D_Reset    => d80_reset,
-		-- 20 characters each: "GOTTFA80 SMD    V303" / "GAME 040 OPT00      "
-		row1       => "GOTTFA80 SMD    V" & BOARD_ID & SW_SUB_80,
+		-- 20 characters each: "GOTTFA80        V303" / "GAME 040 OPT00      "
+		row1       => "GOTTFA80        V" & BOARD_ID & SW_SUB_80,
 		row2       => d80_row2,
 		error_row2 => d80_err2
 		);
