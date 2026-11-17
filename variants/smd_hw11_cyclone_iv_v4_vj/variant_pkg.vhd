@@ -23,4 +23,10 @@ package variant_pkg is
 	-- Virtual-JTAG-Testknoten (lib_common\vjtag_probe.vhd), Stufe 1 von FA-Control ueber JTAG.
 	-- Nur die ruhende Variante smd_hw11_cyclone_iv_v4_vj. Seit 17.11.2026.
 	constant HAS_VJTAG_PROBE : boolean := true;
+	-- FA-Control ueber Virtual JTAG (lib_common\fa_vjtag_link.vhd, Option fa_vjtag): ESP32 auf dem
+	-- JTAG-Piggyback an P5 statt auf X7, keine FA-Pins. Seit 17.11.2026, nur Probevarianten.
+	constant HAS_FA_VJTAG : boolean := false;
+	-- Umfang von FA-Control (fa_sys80): 0 = voll, 1 = nur Monitor, 2 = nur Steuerung ohne 80B-Text,
+	-- 3 = nur Monitor ohne 80B-Text. Sparversionen fuer EP4CE6/10CL006 (EVALUIERUNG 15.7).
+	constant FA_SPAR : integer := 0;
 end package variant_pkg;

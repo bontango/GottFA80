@@ -77,6 +77,10 @@
 -- 17.11.2026 HAS_VJTAG_PROBE (only the dormant variant smd_hw11_cyclone_iv_v4_vj): a Virtual
 --            JTAG test node (lib_common\vjtag_probe.vhd) without any connection to the game.
 --            Step 1 of "FA control over Virtual JTAG" (ESP32 on the JTAG header P5).
+--
+-- 17.11.2026 HAS_FA_VJTAG + FA_SPAR (dormant probe variants only): FA control without FA pins,
+--            lib_common\fa_vjtag_link.vhd feeds fa_sys80 over Virtual JTAG. FA_SPAR selects
+--            a reduced FA control (monitor or control only) for EP4CE6/10CL006.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -170,7 +174,10 @@ end component;
 component fa_sys80
 	generic(
 		VERSION      : string(1 to 3);
-		HAS_DISP_80B : boolean
+		HAS_DISP_80B : boolean;
+		FA_MON       : boolean := true;
+		FA_CTRL      : boolean := true;
+		FA_80B_TXT   : boolean := true
 		);
 	port(
 		clk_50       : in  std_logic;
@@ -212,6 +219,40 @@ component vjtag_probe
 		ID : std_logic_vector(31 downto 0)
 		);
 end component;
+
+-- FA control over Virtual JTAG (HAS_FA_VJTAG): looks like the three FA pins to fa_sys80.
+-- A COMPONENT as well: its source is only listed with Option 'fa_vjtag'.
+component fa_vjtag_link
+	generic(
+		ID           : std_logic_vector(31 downto 0);
+		CLKS_PER_BIT : integer := 434;
+		CLK_HZ       : integer := 50000000;
+		DEADMAN_MS   : integer := 2000
+		);
+	port(
+		clk          : in  std_logic;
+		fa_rxd       : out std_logic;
+		fa_txd       : in  std_logic;
+		fa_ctrl_req  : out std_logic
+		);
+end component;
+
+-- FA_SPAR = 4: service design, FA control (incl. 80B text) without the game (see SD card)
+constant FA_SERVICE : boolean := FA_SPAR = 4;
+
+-- third ID character of fa_vjtag_link from FA_SPAR: 'L' full, 'M' monitor, 'C' control,
+-- 'S' service (control without game)
+function fa_kind_byte(spar : integer) return std_logic_vector is
+begin
+	if spar = 4 then
+		return x"53";	-- 'S'
+	elsif spar = 2 then
+		return x"43";	-- 'C'
+	elsif spar = 1 or spar = 3 then
+		return x"4D";	-- 'M'
+	end if;
+	return x"4C";		-- 'L'
+end function;
 
 signal cpu_clk		: std_logic; -- 895 kHz CPU clock
 signal cpu_clk_div	: std_logic; -- from cpu_clk_gen
@@ -446,6 +487,7 @@ begin
 	-- under FA control (HAS_ESP32) both rows come from the host
 	d80_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80        V" & BOARD_ID & SW_SUB_80;
 	d80_row2 <= fa_txt2 when fa_active = '1' else
+	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FA SERVICE " when FA_SERVICE else
 	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FLASH ROM  " when use_flash = '1' else
 	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ";
 	-- error row as PLuS v7_1: flash error (slot not in the flash) "FLASH ERR GAME 040  ";
@@ -628,7 +670,25 @@ port map(
  
 ---------------------
 -- SD card stuff
+-- FA service design (FA_SPAR = 4): no game at all. Without SD and flash loader reset_l
+-- stays '0', so the 6502, the RIOTs, the ROM RAMs and the EEPROM never leave reset and
+-- synthesis removes them - room for full FA control with 80B text on EP4CE6/10CL006.
 ----------------------
+gen_no_sd_card: if FA_SERVICE generate
+	SDcard_CLK     <= '0';
+	SDcard_MOSI    <= '0';
+	CS_SDcard      <= '1';
+	sd_address     <= (others => '0');
+	sd_data        <= (others => '0');
+	sd_wr_rom      <= '0';
+	sd_cpu_reset_l <= '0';
+	sd_error       <= '1';		-- active low: no error (the boot message would show "SD E0 ...")
+	sd_err_cmd     <= (others => '0');
+	sd_err_rx      <= (others => '0');
+	sd_no_card     <= '0';
+end generate gen_no_sd_card;
+
+gen_sd_card: if not FA_SERVICE generate
 SD_CARD: entity work.SD_Card
 port map(
 	--
@@ -655,6 +715,7 @@ port map(
 	err_rx  => sd_err_rx,
 	o_no_card => sd_no_card
 	);
+end generate gen_sd_card;
 
 ---------------------
 -- Game ROMs from the configuration flash (HAS_FLASH_ROM, 13.11.2026), as PLuS v7_1
@@ -663,7 +724,7 @@ port map(
 -- written by scripts\make_flash_hex.ps1 into gottfa80_roms.jic) and takes over ROM write
 -- port, CPU reset and the error signal.
 ---------------------
-gen_flash_rom: if HAS_FLASH_ROM generate
+gen_flash_rom: if HAS_FLASH_ROM and not FA_SERVICE generate
 	signal fl_address    : std_logic_vector(13 downto 0);
 	signal fl_data       : std_logic_vector(7 downto 0);
 	signal fl_wr_rom     : std_logic;
@@ -698,7 +759,7 @@ end generate gen_flash_rom;
 
 -- Without the flash loader the FLASH_* outputs are high impedance, not driven: Quartus 13
 -- (smd_hw11_cyclone_ii) does not know VIRTUAL_PIN and puts these ports on free pins.
-gen_no_flash_rom: if not HAS_FLASH_ROM generate
+gen_no_flash_rom: if not (HAS_FLASH_ROM and not FA_SERVICE) generate
 	use_flash       <= '0';
 	FLASH_DCLK      <= 'Z';
 	FLASH_NCS       <= 'Z';
@@ -1207,7 +1268,7 @@ port map(
 -- as PLuS v7/v7_1. The muxes above are written unconditionally on purpose: without ESP
 -- fa_active is the constant '0' and synthesis removes them again.
 ------------------------------------------------------------------------------
-gen_fa_control: if HAS_ESP32 generate
+gen_fa_control: if HAS_ESP32 or HAS_FA_VJTAG generate
 	signal fa_rxd_s : std_logic;
 	signal fa_txd_s : std_logic;
 	signal fa_req_s : std_logic;
@@ -1220,10 +1281,32 @@ fa_io: for i in FA_RXD'range generate
 	fa_req_s       <= FA_CTRL_REQ(i);
 end generate fa_io;
 
+-- FA control over Virtual JTAG (ESP32 on the JTAG piggyback at P5, no FA pins).
+-- ID "FA" & kind & BOARD_ID: kind L = full, M = monitor only (FA_SPAR 1/3), C = control
+-- only (FA_SPAR 2), e.g. "FAM3" = 0x46414D33. FA_Control shows it in menu 09 FPGA.
+-- The test node vjtag_probe says "GF8x".
+gen_fa_vjtag: if HAS_FA_VJTAG generate
+VJL: fa_vjtag_link
+	generic map(
+		ID => x"4641" & fa_kind_byte(FA_SPAR) & std_logic_vector(to_unsigned(character'pos(BOARD_ID(1)), 8))
+		)
+	port map(
+		clk          => clk_50,
+		fa_rxd       => fa_rxd_s,
+		fa_txd       => fa_txd_s,
+		fa_ctrl_req  => fa_req_s
+		);
+end generate gen_fa_vjtag;
+
 FA: fa_sys80
 generic map(
 	VERSION      => BOARD_ID & SW_SUB_80,	-- e.g. "805"
-	HAS_DISP_80B => HAS_DISP_80B
+	HAS_DISP_80B => HAS_DISP_80B,
+	-- FA_SPAR (variant_pkg): 0 full, 1 monitor only, 2 control only without 80B text,
+	-- 3 monitor only without 80B text, 4 service: control with 80B text, no game
+	FA_MON       => FA_SPAR = 0 or FA_SPAR = 1 or FA_SPAR = 3,
+	FA_CTRL      => FA_SPAR = 0 or FA_SPAR = 2 or FA_SPAR = 4,
+	FA_80B_TXT   => FA_SPAR = 0 or FA_SPAR = 1 or FA_SPAR = 4
 	)
 port map(
 	clk_50       => clk_50,
@@ -1261,7 +1344,7 @@ end generate gen_fa_control;
 ------------------------------------------------------------------------------
 -- Boards without ESP32. The FA ports have no bits there (see entity), nothing to drive.
 ------------------------------------------------------------------------------
-gen_no_fa_control: if not HAS_ESP32 generate
+gen_no_fa_control: if not (HAS_ESP32 or HAS_FA_VJTAG) generate
 	fa_active    <= '0';
 	fa_u6a      <= (others => '1');
 	fa_u6b       <= (others => '0');

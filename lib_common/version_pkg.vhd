@@ -20,5 +20,8 @@ package version_pkg is
 	-- SD_Card v052..v055), noch nicht released. Getestet: smd_hw11_cyclone_10 (Ralf).
 	-- Stand 13.11.2026: "05" (Spiel-ROMs aus dem Konfigurationsflash, zuerst nur
 	-- smd_hw11_cyclone_10), noch nicht released.
-	constant SW_SUB_80 : string(1 to 2) := "05";
+	-- Stand 17.11.2026: "06" (FA-Control ueber Virtual JTAG: fa_vjtag_link, HAS_FA_VJTAG/FA_SPAR,
+	-- Sparversionen Monitor/Service fuer EP4CE6/10CL006; nur ruhende Probevarianten, die
+	-- ausgelieferten Varianten aendern nur die Versionsziffer), noch nicht released.
+	constant SW_SUB_80 : string(1 to 2) := "06";
 end package version_pkg;
