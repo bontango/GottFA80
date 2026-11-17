@@ -193,6 +193,7 @@ set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control_pkg.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_rx.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_tx.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/fa_sys80.vhd
 set_global_assignment -name VHDL_FILE ../../top/SYS80.vhd
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/SYSTEM_ROM.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_IV/SB_RAM.qip

@@ -54,6 +54,7 @@ the game number at boot with three digits (including the freeplay bit) as PLuS d
 | `smd_hw11_cyclone_iv` | GottFA80 HW 1.1 SMD, Cyclone IV board v3.x | `EP4CE6F17C8` | `2xx` | `GottFA80_v110_v203.jic` |
 | `smd_hw11_cyclone_iv_v4` | GottFA80 HW 1.1 SMD, Cyclone IV board v4.x | `EP4CE6E22C8` | `3xx` | `GottFA80_v110_v303.jic` |
 | `smd_hw11_cyclone_10` | GottFA80 HW 1.1 SMD, Cyclone 10 | `10CL006YE144C8G` | `4xx` | `GottFA80_v110_v403a.jic` |
+| `smd_hw11_cyclone_iv_v7_1` | GottFA80 HW 1.1 SMD, Cyclone IV board v7.1 (ESP32-C3) | `EP4CE22F17C8` | `8xx` | not released yet (`.rbf`, untested) |
 
 The SMD boards have no sound board, a smaller DIP matrix (2 strobes, 5 returns) and three
 FPGA board LEDs, so they have their own top level. The Cyclone II board has no second game
@@ -76,12 +77,17 @@ FA-Control sends. On the EP4CE22 the balls A8/A9 are clock inputs only, so the s
 (P2-8 to P3-16, P2-3 to P3-14, see `variants/plus_hw21x_cyclone_iv_v7_1/pins.tcl`).
 Programming through the ESP32 needs an FA-Control firmware that knows the EP4CE22.
 
+`smd_hw11_cyclone_iv_v7_1` puts the GottFA80 HW 1.1 (SMD) board on the same board v7.1 with
+FA-Control (monitor and control mode). Both top levels use the same FA-Control block,
+`lib_common/fa_sys80.vhd`. On the SMD board A8/A9 carry switch returns (inputs), so no wire
+bridges are needed. Release artifact is the `.rbf`.
+
 The version shown at boot is `BOARD_ID & SW_SUB`: the two leading digits identify the
 board (`variants/<name>/variant_pkg.vhd`; first digit FPGA family, second digit board
 revision), the last digit is the common software version (`lib_common/version_pkg.vhd`).
 A release changes exactly one digit, and all boards follow. The SMD boards show
 `BOARD_ID & SW_SUB_80`: one digit for the board (1 Cyclone II, 2 Cyclone IV v3.x,
-3 Cyclone IV v4.x, 4 Cyclone 10) and two software digits.
+3 Cyclone IV v4.x, 4 Cyclone 10, 8 Cyclone IV v7.1 with ESP32) and two software digits.
 
 ## Layout
 
@@ -92,12 +98,13 @@ lib_common/            all shared modules, version_pkg.vhd, SYS80.sdc
 lib_cyclone_II/        megafunctions for Cyclone II     (identical entity names)
 lib_cyclone_IV/        megafunctions for Cyclone IV E   (identical entity names)
 lib_cyclone_10/        megafunctions for Cyclone 10 LP  (identical entity names)
-lib_fa_control/        FA-Control (LISY API slave), built only where HAS_ESP32
+lib_fa_control/        FA-Control (LISY API slave), built only where HAS_ESP32;
+                       lib_common/fa_sys80.vhd wires it to the game (both top levels)
 variants/<name>/       variant_pkg.vhd, variant.psd1, device.tcl, pins.tcl,
                        SYS80.qpf, SYS80.cof, SYS80.qsf (GENERATED)
 scripts/               gen_qsf.ps1  check.ps1  build.ps1  release.ps1  baseline.csv
                        common_header.tcl  files_common.tcl  files_plus.tcl  files_smd.tcl
-                       files_<family>.tcl  files_pll_civ.tcl
+                       files_<family>.tcl  files_pll_civ.tcl  files_fa_control.tcl
 ```
 
 ## Building

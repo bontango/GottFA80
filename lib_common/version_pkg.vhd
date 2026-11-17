@@ -15,7 +15,7 @@ package version_pkg is
 	constant SW_SUB : character := '5';
 	-- GottFA80 HW 1.1 SMD (top\SYS80_80.vhd): Anzeige = BOARD_ID (eine Ziffer) & SW_SUB_80,
 	-- Cyclone II -> 1xx, Cyclone IV Board v3.x -> 2xx, Cyclone IV Board v4.x -> 3xx,
-	-- Cyclone 10 -> 4xx. Stand 12.11.2026: "03" (= ausgelieferte v103/v203/v303/v403a).
+	-- Cyclone 10 -> 4xx, Cyclone IV Board v7.1 mit ESP32 -> 8xx (seit 16.11.2026). Stand 12.11.2026: "03" (= ausgelieferte v103/v203/v303/v403a).
 	-- Stand 13.11.2026: "04" (80B-Bootanzeige, SD-Diagnose / NO SD CARD, Optionsziffern,
 	-- SD_Card v052..v055), noch nicht released. Getestet: smd_hw11_cyclone_10 (Ralf).
 	-- Stand 13.11.2026: "05" (Spiel-ROMs aus dem Konfigurationsflash, zuerst nur

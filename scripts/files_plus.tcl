@@ -21,4 +21,6 @@ set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control_pkg.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_rx.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/uart_tx.vhd
 set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control.vhd
+# FA-Block des Tops (seit 16.11.2026 ausgelagert, gemeinsam mit dem SMD-Top Board v7.1)
+set_global_assignment -name VHDL_FILE ../../lib_common/fa_sys80.vhd
 set_global_assignment -name VHDL_FILE ../../top/SYS80.vhd

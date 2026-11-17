@@ -67,6 +67,12 @@
 --              HAS_DISP_80B   80B boot message on the alphanumeric display, as PLuS v7_1
 --            The software digits come from lib_common\version_pkg.vhd (SW_SUB_80).
 --            The PLuS boards have their own top level top\SYS80.vhd.
+--
+-- 16.11.2026 FA-Control (HAS_ESP32) for the Cyclone IV board v7.1 (EP4CE22, ESP32-C3 on X7,
+--            variant smd_hw11_cyclone_iv_v7_1, BOARD_ID 8): the same block as the PLuS
+--            board v7_1 (lib_common\fa_sys80.vhd). Under FA control the game core (6502,
+--            RIOTs, game_running) is held in reset and the outputs come from FA control;
+--            all muxes below fall away without ESP (fa_active is the constant '0').
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -127,7 +133,15 @@ entity SYS80_80 is
 		FLASH_DCLK		:	out	std_logic;
 		FLASH_NCS		:	out	std_logic;
 		FLASH_ASDO		:	out	std_logic;	-- data into the flash
-		FLASH_DATA0		:	in		std_logic	-- data out of the flash
+		FLASH_DATA0		:	in		std_logic;	-- data out of the flash
+
+		-- FA control: ESP32-C3 on X7 of the Cyclone IV board v7.1 (HAS_ESP32), one bit each
+		-- (pins FA_RXD[0] etc.). Without ESP the ports have NO bits (null range), so no pin
+		-- is created: the Cyclone II board has all 89 I/O in use and Quartus 13 ignores
+		-- VIRTUAL_PIN there (Error 176205 when these were plain std_logic ports).
+		FA_RXD			:	in		std_logic_vector(boolean'pos(HAS_ESP32) - 1 downto 0);	-- R3, from the TX of the ESP
+		FA_TXD			:	out	std_logic_vector(boolean'pos(HAS_ESP32) - 1 downto 0);	-- T2, to the RX of the ESP
+		FA_CTRL_REQ		:	in		std_logic_vector(boolean'pos(HAS_ESP32) - 1 downto 0)	-- N3, active low, weak pull-up
 		);
 end SYS80_80;
 
@@ -146,10 +160,52 @@ component cpu_clock_gen
 	);
 end component;
 
+-- FA control (lib_common\fa_sys80.vhd, HAS_ESP32). Also a COMPONENT on purpose: its sources
+-- (lib_fa_control) are only listed for the ESP boards (Option 'fa_control',
+-- scripts\files_fa_control.tcl), Cyclone II / Quartus 13 does not parse them.
+component fa_sys80
+	generic(
+		VERSION      : string(1 to 3);
+		HAS_DISP_80B : boolean
+		);
+	port(
+		clk_50       : in  std_logic;
+		reset        : in  std_logic;
+		FA_RXD       : in  std_logic;
+		FA_TXD       : out std_logic;
+		FA_CTRL_REQ  : in  std_logic;
+		U4_PB        : in  std_logic_vector(7 downto 0);
+		U4_pa_in     : in  std_logic_vector(7 downto 0);
+		U5_pa_out    : in  std_logic_vector(7 downto 0);
+		U5_pb_out    : in  std_logic_vector(7 downto 0);
+		U6_pa_out    : in  std_logic_vector(7 downto 0);
+		U6_pb_out    : in  std_logic_vector(7 downto 0);
+		game_running : in  std_logic;
+		not80B       : in  std_logic;
+		sys80B       : in  std_logic;
+		segments_80B : in  std_logic_vector(1 to 24);
+		game_dig2    : in  character;
+		game_dig1    : in  character;
+		game_dig0    : in  character;
+		active       : out std_logic;
+		u6a          : out std_logic_vector(7 downto 0);
+		u6b          : out std_logic_vector(7 downto 0);
+		sw_strobe    : out std_logic_vector(7 downto 0);
+		sim_ret      : out std_logic_vector(7 downto 0);
+		disp1        : out string(1 to 7);
+		disp2        : out string(1 to 7);
+		disp3        : out string(1 to 7);
+		disp4        : out string(1 to 7);
+		txt1         : out string(1 to 20);
+		txt2         : out string(1 to 20)
+		);
+end component;
+
 signal cpu_clk		: std_logic; -- 895 kHz CPU clock
 signal cpu_clk_div	: std_logic; -- from cpu_clk_gen
 signal cpu_clk_pll	: std_logic; -- from the PLL (HAS_PLL_CLK)
 signal reset_l	 	: std_logic;
+signal game_reset_l	: std_logic;	-- reset_l, plus held while FA control has control
 signal reset_sw_stable	:	std_logic; 
 signal Counter : integer range 0 to 15 := 0;
 
@@ -281,6 +337,26 @@ signal slam				: 	std_logic;
 signal lamp_ds 		:  std_logic_vector(3 downto 0);		
 signal late80B			: std_logic:='0'; --default we have not a late 80B system with bigger rom
 
+-- FA control (HAS_ESP32), outputs of fa_sys80; fa_u6a/fa_u6b have the meaning of the RIOT
+-- ports (before the inverters below), so the output paths stay the same as in the game.
+signal fa_active		: std_logic;
+signal fa_u6a			: std_logic_vector(7 downto 0);
+signal fa_u6b			: std_logic_vector(7 downto 0);
+signal fa_sw_strobe	: std_logic_vector(7 downto 0);
+signal fa_sim_ret		: std_logic_vector(7 downto 0);	-- simulated switches of the strobed column
+signal fa_disp1		: string(1 to 7);
+signal fa_disp2		: string(1 to 7);
+signal fa_disp3		: string(1 to 7);
+signal fa_disp4		: string(1 to 7);
+signal fa_txt1			: string(1 to 20);	-- FA control display 0 (80B row 1)
+signal fa_txt2			: string(1 to 20);	-- FA control display 1 (80B row 2)
+signal u4_pb_out		: std_logic_vector(7 downto 0);
+signal bm_display1	: string(1 to 7);
+signal bm_display2	: string(1 to 7);
+signal bm_display3	: string(1 to 7);
+signal bm_display4	: string(1 to 7);
+signal bm_error4		: string(1 to 7);
+
 -- nibble as hex character (SD diagnosis on the 80B boot message), copy of top\SYS80.vhd
 function hexc(n : std_logic_vector(3 downto 0)) return character is
 	constant H : string(1 to 16) := "0123456789ABCDEF";
@@ -311,19 +387,25 @@ BM: entity work.boot_message
 port map(
 	clk_in		=> cpu_clk, 	
 	-- Control/Data Signals,
-   show  => not game_running,
-	SD_error => not SDcard_error,	
+   show  => (not game_running) or fa_active,
+	SD_error => not SDcard_error,
 	-- output
 	bm_digit_strobe	=> bm_digit_strobe,
 	bm_segments => bm_segments,
-	-- input (display data)		
-	display1	=> "    " & BOARD_ID & SW_SUB_80,  -- e.g. "    203"
-	display2	=> "    " & dig2_ascii &dig1_ascii & dig0_ascii,	
-	display3	=> " 050963",
-	display4	=> " " & g_opt_dig1 & g_opt_dig0 & "    ",  -- game options, as PLuS (no SB options)
-	error_disp4 => "0000000",	
+	-- input (display data); under FA control the digits of the host
+	display1	=> bm_display1,
+	display2	=> bm_display2,
+	display3	=> bm_display3,
+	display4	=> bm_display4,
+	error_disp4 => bm_error4,
 	status_d	=> "       "
 	);
+
+bm_display1 <= fa_disp1 when fa_active = '1' else "    " & BOARD_ID & SW_SUB_80;  -- e.g. "    203"
+bm_display2 <= fa_disp2 when fa_active = '1' else "    " & dig2_ascii & dig1_ascii & dig0_ascii;
+bm_display3 <= fa_disp3 when fa_active = '1' else " 050963";
+bm_display4 <= fa_disp4 when fa_active = '1' else " " & g_opt_dig1 & g_opt_dig0 & "    ";  -- game options, as PLuS (no SB options)
+bm_error4   <= fa_disp4 when fa_active = '1' else "0000000";
 
 ----------------------
 -- boot message 80B (2 x 20 characters, Rockwell 10941), only with HAS_DISP_80B.
@@ -337,7 +419,7 @@ port map(
 ----------------------
 sys80B <= '1' when HAS_DISP_80B and to_integer(unsigned(not game_select)) >= 40
                    and to_integer(unsigned(not game_select)) <= 61 else '0';
-show80B <= sys80B and not readingdips and ((not game_running) or not SDcard_error);
+show80B <= sys80B and not readingdips and ((not game_running) or fa_active or not SDcard_error);
 
 gen_disp80b: if HAS_DISP_80B generate
 	signal d80_data  : std_logic_vector(7 downto 0);
@@ -345,10 +427,14 @@ gen_disp80b: if HAS_DISP_80B generate
 	signal d80_ld2   : std_logic;
 	signal d80_reset : std_logic;
 	signal d80_err2  : string(1 to 20);
+	signal d80_row1  : string(1 to 20);
 	signal d80_row2  : string(1 to 20);
 begin
 	-- row 2: game and options, or "GAME 040 FLASH ROM  " when the ROMs come from the flash
-	d80_row2 <= "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FLASH ROM  " when use_flash = '1' else
+	-- under FA control (HAS_ESP32) both rows come from the host
+	d80_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80        V" & BOARD_ID & SW_SUB_80;
+	d80_row2 <= fa_txt2 when fa_active = '1' else
+	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FLASH ROM  " when use_flash = '1' else
 	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ";
 	-- error row as PLuS v7_1: flash error (slot not in the flash) "FLASH ERR GAME 040  ";
 	-- SD: no answer at all (all 7 bytes FF, typically no card) -> "GAME 040 NO SD CARD ",
@@ -378,7 +464,7 @@ begin
 		LD2        => d80_ld2,
 		D_Reset    => d80_reset,
 		-- 20 characters each: "GOTTFA80        V303" / "GAME 040 OPT00      "
-		row1       => "GOTTFA80        V" & BOARD_ID & SW_SUB_80,
+		row1       => d80_row1,
 		row2       => d80_row2,
 		error_row2 => d80_err2
 		);
@@ -493,16 +579,23 @@ CLK <= SDcard_CLK when reset_l = '0' else EEprom_CLK;
 
 
 ---------------------
+-- FA control holds the whole game core (6502, RIOTs U4/U5/U6, game_running) in reset,
+-- afterwards the game starts again as after power-on (as PLuS v7/v7_1).
+-- Without ESP fa_active is '0', so game_reset_l equals reset_l.
+---------------------
+game_reset_l <= reset_l and not fa_active;
+
+---------------------
 -- count ints
 -- indicate game running or not
 ---------------------
 COUNT_INTS: entity work.count_to_zero
-port map(   
+port map(
    Clock => clk_50,
 	count =>"11111111",
 	d_in => cpu_irq_n,
 	d_out => game_running,
-	clear => reset_l
+	clear => game_reset_l
 	);
  
 ---------------------
@@ -747,7 +840,7 @@ port map(
 -- U5
 -- display 
 --------------------------------------------------
-U5_PB_7 <= not U5_pb_out(7); --switch enable
+U5_PB_7 <= '1' when fa_active = '1' else not U5_pb_out(7); --switch enable (FA: matrix, no DIPs)
 
 -- determine if we have a 80B system -> no strobes on U5 PA0 .. PA3
 COUNT_STROBES: entity work.count_to_zero
@@ -764,7 +857,7 @@ port map(
 disp_segments <=
    -- segments_80B when not80B = '0' else
 	bm80B_segments when show80B = '1' else	-- 80B game: boot message 2x20 (only HAS_DISP_80B)
-	bm_segments when game_running = '0' and U5_pb_out(6) = '1' else  --RTH
+	bm_segments when (game_running = '0' and U5_pb_out(6) = '1') or fa_active = '1' else  --RTH
 	segments_80 when not80B = '1' else
    segments_80B;	
 
@@ -815,7 +908,7 @@ port map(
 -- 80/80A display routines	
 --------------------------------------------------
 --digit strobes
-U5_PA(3 downto 0) <= U5_pa_out(3 downto 0) when game_running='1' else bm_digit_strobe;
+U5_PA(3 downto 0) <= U5_pa_out(3 downto 0) when game_running='1' and fa_active='0' else bm_digit_strobe;
 
 --segments
 sn74175_80_1: entity work.sn74175 
@@ -872,10 +965,15 @@ segments_80(24) <= not U5_pb_out(6);
 --------------------------------------------------
 -- solenoids & lamps
 --------------------------------------------------
-U6_PA(4 downto 0) <= not U6_pa_out(4 downto 0) when game_running='1' else "00000"; --sound AND Z31
-U6_PA(7 downto 5) <= U6_pa_out(7 downto 5) when game_running='1' else "111"; -- decoder enable and Sol9
-U6_PB(3 downto 0) <= not U6_pb_out(3 downto 0) when game_running='1' else "1111"; -- thunk prevention (inverter)
-U6_PB(7 downto 4) <= U6_pb_out(7 downto 4)when reset_l='1' else lamp_ds; -- thunk prevention 
+-- under FA control the same paths, fed from fa_u6a/fa_u6b (RIOT meaning)
+U6_PA(4 downto 0) <= not fa_u6a(4 downto 0) when fa_active='1' else
+                     not U6_pa_out(4 downto 0) when game_running='1' else "00000"; --sound AND Z31
+U6_PA(7 downto 5) <= fa_u6a(7 downto 5) when fa_active='1' else
+                     U6_pa_out(7 downto 5) when game_running='1' else "111"; -- decoder enable and Sol9
+U6_PB(3 downto 0) <= not fa_u6b(3 downto 0) when fa_active='1' else
+                     not U6_pb_out(3 downto 0) when game_running='1' else "1111"; -- thunk prevention (inverter)
+U6_PB(7 downto 4) <= fa_u6b(7 downto 4) when fa_active='1' else
+                     U6_pb_out(7 downto 4)when reset_l='1' else lamp_ds; -- thunk prevention
 	
 -- cpu clock 892Khz
 -- clock_gen stays OUTSIDE any generate: lib_common\SYS80.sdc names it
@@ -905,7 +1003,7 @@ cpu_clk <= cpu_clk_pll when HAS_PLL_CLK else cpu_clk_div;
 U1: entity work.T65 -- 6502 
 port map(
 	Mode    			=> "00",
-	Res_n   			=> reset_l,
+	Res_n   			=> game_reset_l,	-- FA control holds the game core
 	Enable  			=> '1',
 	Clk     			=> cpu_clk,
 	Rdy     			=> '1',
@@ -979,7 +1077,7 @@ port map(
 U4_IO: entity work.R6532  -- Switchmatrx
 port map(
 	phi2   => phi2,
-   rst_n  => reset_l,
+   rst_n  => game_reset_l,
    cs     => U4_IO_cs,
    rw_n   => cpu_wr_n,
 	irq_n  => U4_irq_n,
@@ -988,11 +1086,14 @@ port map(
    din	 => cpu_dout,
 	dout	 => U4_IO_dout,
 		
-	pa_in	 => U4_pa_in or SW_Freeplay,
+	pa_in	 => U4_pa_in or SW_Freeplay or fa_sim_ret,	-- simulated switches (FA monitor)
    pa_out => open,
    pb_in  => "00000000",
-	pb_out => U4_PB
+	pb_out => u4_pb_out
  );
+
+-- switch strobes: under FA control from fa_sys80
+U4_PB <= fa_sw_strobe when fa_active = '1' else u4_pb_out;
 
 U5_RAM: entity work.RIOT_RAM
 port map(
@@ -1005,7 +1106,7 @@ port map(
 U5_IO: entity work.R6532  -- Display Control
 port map(
 	phi2   => phi2,
-   rst_n  => reset_l,
+   rst_n  => game_reset_l,
    cs     => U5_IO_cs,
    rw_n   => cpu_wr_n,
 	irq_n  => U5_irq_n,
@@ -1031,7 +1132,7 @@ port map(
 U6_IO: entity work.R6532  -- Solenoid & Lamp Control
 port map(
 	phi2   => phi2,
-   rst_n  => reset_l,
+   rst_n  => game_reset_l,
    cs     => U6_IO_cs,
    rw_n   => cpu_wr_n,
 	irq_n  => U6_irq_n,
@@ -1087,6 +1188,80 @@ port map(
    i_D => reset_sw,
 	o_Q => reset_sw_stable,
    i_Fast_Clk => cpu_clk
-	); 
+	);
+
+------------------------------------------------------------------------------
+-- FA control (HAS_ESP32, Cyclone IV board v7.1): lib_common\fa_sys80.vhd, the same block
+-- as PLuS v7/v7_1. The muxes above are written unconditionally on purpose: without ESP
+-- fa_active is the constant '0' and synthesis removes them again.
+------------------------------------------------------------------------------
+gen_fa_control: if HAS_ESP32 generate
+	signal fa_rxd_s : std_logic;
+	signal fa_txd_s : std_logic;
+	signal fa_req_s : std_logic;
+begin
+-- the FA ports are one bit wide here; a loop instead of FA_RXD(0), so that no static index
+-- into the null range shows up on the boards without ESP
+fa_io: for i in FA_RXD'range generate
+	fa_rxd_s       <= FA_RXD(i);
+	FA_TXD(i)      <= fa_txd_s;
+	fa_req_s       <= FA_CTRL_REQ(i);
+end generate fa_io;
+
+FA: fa_sys80
+generic map(
+	VERSION      => BOARD_ID & SW_SUB_80,	-- e.g. "805"
+	HAS_DISP_80B => HAS_DISP_80B
+	)
+port map(
+	clk_50       => clk_50,
+	reset        => not reset_sw_stable,
+	FA_RXD       => fa_rxd_s,
+	FA_TXD       => fa_txd_s,
+	FA_CTRL_REQ  => fa_req_s,
+	U4_PB        => U4_PB,
+	U4_pa_in     => U4_pa_in,
+	U5_pa_out    => U5_pa_out,
+	U5_pb_out    => U5_pb_out,
+	U6_pa_out    => U6_pa_out,
+	U6_pb_out    => U6_pb_out,
+	game_running => game_running,
+	not80B       => not80B,
+	sys80B       => sys80B,
+	segments_80B => segments_80B,
+	game_dig2    => dig2_ascii,
+	game_dig1    => dig1_ascii,
+	game_dig0    => dig0_ascii,
+	active       => fa_active,
+	u6a          => fa_u6a,
+	u6b          => fa_u6b,
+	sw_strobe    => fa_sw_strobe,
+	sim_ret      => fa_sim_ret,
+	disp1        => fa_disp1,
+	disp2        => fa_disp2,
+	disp3        => fa_disp3,
+	disp4        => fa_disp4,
+	txt1         => fa_txt1,
+	txt2         => fa_txt2
+	);
+end generate gen_fa_control;
+
+------------------------------------------------------------------------------
+-- Boards without ESP32. The FA ports have no bits there (see entity), nothing to drive.
+------------------------------------------------------------------------------
+gen_no_fa_control: if not HAS_ESP32 generate
+	fa_active    <= '0';
+	fa_u6a      <= (others => '1');
+	fa_u6b       <= (others => '0');
+	fa_sw_strobe <= (others => '0');
+	fa_sim_ret   <= (others => '0');
+	fa_disp1     <= "       ";
+	fa_disp2     <= "       ";
+	fa_disp3     <= "       ";
+	fa_disp4     <= "       ";
+	fa_txt1      <= (others => ' ');
+	fa_txt2      <= (others => ' ');
+end generate gen_no_fa_control;
+
 end rtl;
 		

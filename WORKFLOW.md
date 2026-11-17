@@ -12,6 +12,7 @@ nur eigene Pins, `BOARD_ID`, `ReleasePrefix = 'GottFA80S_'` und Changelog `bin/8
 |---|---|
 | Logik ändern (PLuS und 80S) | `top/SYS80.vhd`, `lib_common/*.vhd` |
 | Logik ändern (SMD) | `top/SYS80_80.vhd`, `lib_common/*.vhd` |
+| FA-Control-Anbindung ändern (Monitor, Lampen/Spulen/Schalter unter FA) | `lib_common/fa_sys80.vhd` – gilt für PLuS v7/v7_1 **und** SMD v7.1; die Muxe auf die Ausgänge stehen in beiden Tops. Im SMD-Top als Component (Quellen nur über Option `fa_control` = `scripts/files_fa_control.tcl`) |
 | eine neue `.vhd` hinzufügen | Datei nach `lib_common/` **und** Eintrag in `scripts/files_common.tcl` (beide Linien), `files_plus.tcl` oder `files_smd.tcl` |
 | eine Board-Eigenschaft schalten | Konstante in `variants/<n>/variant_pkg.vhd` + paarweises `if … generate` im Top-Level |
 | einen Pin eines Boards verlegen | `variants/<n>/pins.tcl` |
