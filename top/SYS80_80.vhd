@@ -73,6 +73,10 @@
 --            board v7_1 (lib_common\fa_sys80.vhd). Under FA control the game core (6502,
 --            RIOTs, game_running) is held in reset and the outputs come from FA control;
 --            all muxes below fall away without ESP (fa_active is the constant '0').
+--
+-- 17.11.2026 HAS_VJTAG_PROBE (only the dormant variant smd_hw11_cyclone_iv_v4_vj): a Virtual
+--            JTAG test node (lib_common\vjtag_probe.vhd) without any connection to the game.
+--            Step 1 of "FA control over Virtual JTAG" (ESP32 on the JTAG header P5).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -198,6 +202,14 @@ component fa_sys80
 		disp4        : out string(1 to 7);
 		txt1         : out string(1 to 20);
 		txt2         : out string(1 to 20)
+		);
+end component;
+
+-- Virtual JTAG test node (HAS_VJTAG_PROBE). A COMPONENT for the same reason as fa_sys80:
+-- its source is only listed with Option 'vjtag_probe' (scripts\files_vjtag_probe.tcl).
+component vjtag_probe
+	generic(
+		ID : std_logic_vector(31 downto 0)
 		);
 end component;
 
@@ -1262,6 +1274,17 @@ gen_no_fa_control: if not HAS_ESP32 generate
 	fa_txt1      <= (others => ' ');
 	fa_txt2      <= (others => ' ');
 end generate gen_no_fa_control;
+
+------------------------------------------------------------------------------
+-- Virtual JTAG test node (HAS_VJTAG_PROBE, step 1 of FA control over JTAG). No ports:
+-- it talks only to the SLD hub that Quartus inserts. ID = "GF8" & BOARD_ID, e.g. "GF83".
+------------------------------------------------------------------------------
+gen_vjtag_probe: if HAS_VJTAG_PROBE generate
+VJP: vjtag_probe
+	generic map(
+		ID => x"474638" & std_logic_vector(to_unsigned(character'pos(BOARD_ID(1)), 8))
+		);
+end generate gen_vjtag_probe;
 
 end rtl;
 		

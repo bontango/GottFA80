@@ -19,4 +19,7 @@ package variant_pkg is
 	-- ESP32-C3 mit FA-Control (lib_common\fa_sys80.vhd). Nur das Cyclone-IV-Board v7.1 traegt ihn
 	-- (smd_hw11_cyclone_iv_v7_1). Seit 16.11.2026.
 	constant HAS_ESP32 : boolean := false;
+	-- Virtual-JTAG-Testknoten (lib_common\vjtag_probe.vhd), Stufe 1 von FA-Control ueber JTAG.
+	-- Nur die ruhende Variante smd_hw11_cyclone_iv_v4_vj. Seit 17.11.2026.
+	constant HAS_VJTAG_PROBE : boolean := false;
 end package variant_pkg;
