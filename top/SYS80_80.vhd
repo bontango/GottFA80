@@ -74,7 +74,7 @@
 --            RIOTs, game_running) is held in reset and the outputs come from FA control;
 --            all muxes below fall away without ESP (fa_active is the constant '0').
 --
--- 19.11.2026 HAS_FA_LITE (smd_hw11_cyclone_iv_v4 and smd_hw11_cyclone_10 since 306): FA control
+-- 19.11.2026 HAS_FA_LITE (SMD Cyclone IV v3/v4 and Cyclone 10 since 306): FA control
 --            "lite" over Virtual JTAG. No LISY parser in the FPGA any more: lib_common\fa_jtag_regs.vhd
 --            (register bank) + lib_common\fa_lite_sys80.vhd, the ESP32 speaks LISY itself
 --            (FA_Control lisy_emul.c). Full scope (monitor, control, 80B text) on the EP4CE6.
