@@ -29,7 +29,7 @@ package variant_pkg is
 	-- Umfang von FA-Control (fa_sys80): 0 = voll, 1 = nur Monitor, 2 = nur Steuerung ohne 80B-Text,
 	-- 3 = nur Monitor ohne 80B-Text. Sparversionen fuer EP4CE6/10CL006 (EVALUIERUNG 15.7).
 	constant FA_SPAR : integer := 4;
-	-- FA-Control "lite" ueber Virtual JTAG (lib_commona_jtag_regs.vhd + fa_lite_sys80.vhd,
+	-- FA-Control "lite" ueber Virtual JTAG (lib_common\fa_jtag_regs.vhd + fa_lite_sys80.vhd,
 	-- Option fa_lite): kein LISY-Parser im FPGA, der ESP32 spricht LISY. Nur die ruhende
 	-- Variante smd_hw11_cyclone_iv_v4_fa_lite. Seit 19.11.2026.
 	constant HAS_FA_LITE : boolean := false;
