@@ -11,5 +11,5 @@
     ReleaseArtifact = 'jic'
     Dormant     = $false
     VirtualPins = @()
-    Notes       = 'Ab 306: FA-Control lite ueber Virtual JTAG (HAS_FA_LITE, Kennung FAR4) - JTAG-Piggyback an P5 genuegt; am 10CL006 noch nicht hardwaregetestet. Vorher ausgeliefert als GottFA80_v110_v403a.jic. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
+    Notes       = 'Ab 306: FA-Control lite ueber Virtual JTAG (HAS_FA_LITE, Kennung FAR4) - JTAG-Piggyback an P5 genuegt; HW-getestet 19.11.2026, ausgeliefert als GottFA80_v110_v406.jic. Vorher ausgeliefert als GottFA80_v110_v403a.jic. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
 }

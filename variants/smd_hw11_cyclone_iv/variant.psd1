@@ -11,5 +11,5 @@
     ReleaseArtifact = 'jic'
     Dormant     = $false
     VirtualPins = @()
-    Notes       = 'Ab 306: FA-Control lite ueber Virtual JTAG (HAS_FA_LITE, Kennung FAR2) - JTAG-Piggyback genuegt; nicht hardwaregetestet. Vorher ausgeliefert als GottFA80_v110_v203.jic. Vorher Ordner GottFA80_HW1.1SMD_Cyclone_IV_v3 (Board v3.x, EP4CE6 im F17-Gehaeuse) - benannt wie BallyFA hw1_cyclone_iv. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
+    Notes       = 'Ab 306: FA-Control lite ueber Virtual JTAG (HAS_FA_LITE, Kennung FAR2) - JTAG-Piggyback genuegt; HW-getestet 19.11.2026, ausgeliefert als GottFA80_v110_v206.jic. Vorher ausgeliefert als GottFA80_v110_v203.jic. Vorher Ordner GottFA80_HW1.1SMD_Cyclone_IV_v3 (Board v3.x, EP4CE6 im F17-Gehaeuse) - benannt wie BallyFA hw1_cyclone_iv. 80B-Bootanzeige wie PLuS v7_1 seit 12.11.2026.'
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <meta name="description" content="English - HW 1.1 (SMD), software x.05 and 306" />
+  <meta name="description" content="English - HW 1.1 (SMD), software x.05 and x.06" />
   <title>GottFA80 user manual</title>
   <style>
 
@@ -135,19 +135,19 @@ tbody tr:nth-child(even) { background: #f3f3f3; }
 <h1 id="gottfa80">GottFA80</h1>
 <p><strong>Gottlieb System80 / 80A / 80B MPU based on FPGA</strong></p>
 <p><strong>Hardware version 1.1 (SMD)</strong></p>
-<p><strong>Software version x.05 (105, 205, 305, 405) and
-306</strong></p>
+<p><strong>Software version x.05 (105, 205, 305, 405) and x.06 (206,
+306, 406)</strong></p>
 <p><strong>user manual</strong></p>
 <p><a href="mailto:ralf@lisy.dev">ralf@lisy.dev</a></p>
-<p>v2.1 19.11.2026</p>
+<p>v2.2 19.11.2026</p>
 <h2 id="table-of-contents">Table of contents</h2>
 <ul>
 <li><a href="#important-remark">Important remark</a></li>
 <li><a href="#1-introduction">1. Introduction</a>
 <ul>
 <li><a href="#11-new-in-software-x05">1.1. New in software x.05</a></li>
-<li><a href="#12-new-in-306-fa-control-on-board-v4x">1.2. New in 306:
-FA-Control on board v4.x</a></li>
+<li><a href="#12-new-in-x06-fa-control-206-306-406">1.2. New in x.06:
+FA-Control (206, 306, 406)</a></li>
 </ul></li>
 <li><a href="#2-soldering">2. Soldering</a></li>
 <li><a href="#3-quickstart">3. Quickstart</a></li>
@@ -198,8 +198,8 @@ free play</a></li>
 </ul></li>
 <li><a href="#10-game-roms-in-the-fpga-flash">10. Game roms in the FPGA
 flash</a></li>
-<li><a href="#11-fa-control-over-the-jtag-piggyback-306">11. FA-Control
-over the JTAG piggyback (306)</a></li>
+<li><a href="#11-fa-control-over-the-jtag-piggyback-x06">11. FA-Control
+over the JTAG piggyback (x.06)</a></li>
 <li><a href="#appendix-a-example-gamelist">Appendix A example
 &#39;Gamelist&#39;</a></li>
 </ul>
@@ -247,17 +247,20 @@ on it (chapter 8.4).</li>
 <p><strong>Test status:</strong> x.05 has been tested on the Cyclone 10
 board (405, with game roms in the flash). The other boards have not been
 tested with x.05 yet; chapter 8.4 lists the last released file for each
-board.</p>
+board. FA-Control with x.06 has been tested on all three boards (206,
+306, 406).</p>
 </blockquote>
-<h3 id="12-new-in-306-fa-control-on-board-v4x">1.2. New in 306:
-FA-Control on board v4.x</h3>
-<p>Only for the Cyclone IV board v4.x. Version 306 contains everything
-of 305 and adds <strong>FA-Control</strong>: with the small ESP32
-piggyback on the JTAG connector of the FPGA board you watch the running
-game in your web browser (lamps, solenoids, switches, displays),
-simulate switches, and take over the machine to test lamps, solenoids,
-sounds and displays. Nothing else changes, without the piggyback 306
-runs exactly like 305. Details in chapter 11.</p>
+<h3 id="12-new-in-x06-fa-control-206-306-406">1.2. New in x.06:
+FA-Control (206, 306, 406)</h3>
+<p>For the Cyclone IV boards v3.x (206) and v4.x (306) and the Cyclone
+10 board (406), <strong>not for Cyclone II</strong> (the FPGA is too
+small). Version x.06 contains everything of x.05 and adds
+<strong>FA-Control</strong>: with the small ESP32 piggyback on the JTAG
+connector of the FPGA board you watch the running game in your web
+browser (lamps, solenoids, switches, displays), simulate switches, and
+take over the machine to test lamps, solenoids, sounds and displays.
+Nothing else changes, without the piggyback x.06 runs exactly like x.05.
+Details in chapter 11.</p>
 <h2 id="2-soldering">2. Soldering</h2>
 <p>On my website I provide the bill of material, and on the PCB each
 component is named. The anode of the LEDs is marked with an &#39;A&#39;.</p>
@@ -302,9 +305,9 @@ different DIY FPGA boards you can find here.</a></p>
 <p>GottFA80 boards have the same connectors and the same mounting holes
 as the original Gottlieb System80 MPUs, so replacing the board can be
 done in seconds.</p>
-<p>With 306 on the Cyclone IV board v4.x you can additionally plug the
-FA-Control piggyback onto the JTAG connector P5 of the FPGA board, also
-with the board installed in the machine (chapter 11).</p>
+<p>With x.06 (Cyclone IV v3.x and v4.x, Cyclone 10) you can additionally
+plug the FA-Control piggyback onto the JTAG connector P5 of the FPGA
+board, also with the board installed in the machine (chapter 11).</p>
 <h2 id="5-dip-switch-settings">5. Dip Switch Settings</h2>
 <p>The four DIP banks on the left (S1...S32) are the same as on the
 original MPU. The two banks on the right are for game selection and the
@@ -312,7 +315,7 @@ GottFA80 options.</p>
 <p><strong>A DIP switch is &#39;ON&#39; when it is pushed to the &#39;ON&#39; side of
 the bank.</strong> The numbers shown on the boot display count the
 switches that are ON (chapter 6.2).</p>
-<p>FA-Control (306, chapter 11) needs no DIP switch: you request the
+<p>FA-Control (x.06, chapter 11) needs no DIP switch: you request the
 takeover in the FA-Control web page.</p>
 <h3 id="51-game-select">5.1. Game select</h3>
 <p>Here you select which game GottFA80 runs. The six switches form the
@@ -598,9 +601,12 @@ boot tells you which program is running.</p>
 </tr>
 </tbody>
 </table>
-<p>For the Cyclone IV board v4.x there is also <strong>306</strong>
-(<code>GottFA80_v110_v306.jic</code>): 305 plus FA-Control over the JTAG
-piggyback (chapter 11). Version 306 exists only for this board.</p>
+<p>Version <strong>x.06</strong> is x.05 plus FA-Control over the JTAG
+piggyback (chapter 11): <strong>206</strong>
+(<code>GottFA80_v110_v206.jic</code>, board v3.x), <strong>306</strong>
+(<code>GottFA80_v110_v306.jic</code>, board v4.x) and
+<strong>406</strong> (<code>GottFA80_v110_v406.jic</code>, Cyclone 10).
+There is no x.06 for Cyclone II, its FPGA is too small.</p>
 <p>The release files have <strong>no game roms</strong> in the flash.
 How to build a file with roms is described in chapter 10.</p>
 <p>On the Cyclone II board the late System80B games (game number 56 to
@@ -718,25 +724,26 @@ Programmer instead of the normal file, with &#39;Verify&#39; ticked (chapter
 8.3).</p></li>
 </ol>
 <p>The variant names of the source tree are
-<code>smd_hw11_cyclone_iv</code> (205),
-<code>smd_hw11_cyclone_iv_v4</code> (305) and
-<code>smd_hw11_cyclone_10</code> (405).</p>
+<code>smd_hw11_cyclone_iv</code> (205/206),
+<code>smd_hw11_cyclone_iv_v4</code> (305/306) and
+<code>smd_hw11_cyclone_10</code> (405/406).</p>
 <p><strong>Keep that file to yourself.</strong> It contains the game
 roms and must not be passed on.</p>
-<h2 id="11-fa-control-over-the-jtag-piggyback-306">11. FA-Control over
-the JTAG piggyback (306)</h2>
-<p>New with 306, <strong>only on the Cyclone IV board v4.x</strong>.
+<h2 id="11-fa-control-over-the-jtag-piggyback-x06">11. FA-Control over
+the JTAG piggyback (x.06)</h2>
+<p>New with x.06, on the Cyclone IV boards v3.x (206) and v4.x (306) and
+on the Cyclone 10 board (406), <strong>not on Cyclone II</strong>.
 FA-Control is a small ESP32 board with a web page: you open it on your
 phone or PC and see what the game does, or take over the machine for
 testing. Its own manual: <a href="https://bontango.github.io/FA_Control/">FA-Control user
 manual</a>.</p>
 <p><strong>What you need</strong></p>
 <ul>
-<li>306 in the FPGA (chapter 8.4)</li>
+<li>206, 306 or 406 in the FPGA, matching your board (chapter 8.4)</li>
 <li>the JTAG piggyback with FA-Control firmware <strong>1.34 or
-later</strong>, connected by ribbon cable to the JTAG connector
-<strong>P5</strong> of the FPGA board. It is powered from the board, no
-extra supply needed.</li>
+later</strong>, connected by ribbon cable to the JTAG connector of the
+FPGA board (<strong>P5</strong> on board v4.x). It is powered from the
+board, no extra supply needed.</li>
 <li>WLAN for your phone or PC</li>
 </ul>
 <blockquote>
