@@ -37,11 +37,7 @@ entity fa_sys80 is
 		-- Version fuer FA-Control (ver_main/sub1/sub2), drei Ziffern wie die Bootanzeige:
 		-- PLuS BOARD_ID & SW_SUB ("815"), SMD BOARD_ID & SW_SUB_80 ("805")
 		VERSION      : string(1 to 3);
-		HAS_DISP_80B : boolean;		-- 80B: zwei ASCII-Zeilen statt BCD (variant_pkg)
-		-- Sparversionen (Probe 17.11.2026, FA ueber vJTAG auf EP4CE6/10CL006). Defaults = voller Umfang.
-		FA_MON       : boolean := true;	-- Monitor (Opcode 110) + Schalter simulieren (111)
-		FA_CTRL      : boolean := true;	-- Uebernahme (Lampen/Spulen/Displays/Strobes)
-		FA_80B_TXT   : boolean := true	-- 80B-Text unter FA (2x20 ASCII, Mitleser), nur mit HAS_DISP_80B
+		HAS_DISP_80B : boolean		-- 80B: zwei ASCII-Zeilen statt BCD (variant_pkg)
 		);
 	port(
 		clk_50       : in  std_logic;
@@ -106,9 +102,7 @@ begin
 	return std_logic_vector(to_unsigned(character'pos(c), 8));
 end function;
 
-constant HAS_TXT		: boolean := HAS_DISP_80B and FA_80B_TXT;
-signal fa_req_eff		: std_logic;
-signal fa_txt			: fa_byte_array_t(0 to isel(HAS_TXT, 2, 0) * ALPHA_W);
+signal fa_txt			: fa_byte_array_t(0 to isel(HAS_DISP_80B, 2, 0) * ALPHA_W);
 signal fa_active		: std_logic;
 signal fa_sw_state	: std_logic_vector(FA_N_SW - 1 downto 0) := (others => '0');
 signal fa_lamp_ovr	: std_logic_vector(FA_N_LAMPS - 1 downto 0);
@@ -148,7 +142,7 @@ signal fa_txt2			: string(1 to 20);
 	--          zwei Ziffern je Byte, linke Ziffer im High-Nibble, >= 0xA = dunkel
 	-- 80B-Spiel (sys80B): Displays 0/1 = Zeile 1/2 mit je 20 ASCII-Zeichen, ein Byte je
 	-- Stelle, linkes Zeichen zuerst: Bytes 23..42 und 43..62, Laenge 62.
-	constant FA_MON_BYTES : integer := isel(FA_MON, isel(HAS_TXT, 22 + 2 * ALPHA_W, 40), 0);
+	constant FA_MON_BYTES : integer := isel(HAS_DISP_80B, 22 + 2 * ALPHA_W, 40);
 	signal mon_len_s  : integer range 0 to 255;
 	signal mon_bcd    : std_logic_vector(8 * 40 + 7 downto 8 * 23);	-- Displays 80/80A
 	signal mon_row1   : string(1 to ALPHA_W);	-- 80B, mitgelesen
@@ -204,8 +198,6 @@ signal fa_txt2			: string(1 to 20);
 
 begin
 
-fa_req_eff <= FA_CTRL_REQ when FA_CTRL else '1';	-- ohne FA_CTRL nie Uebernahme
-
 FAC: entity work.fa_control
 generic map(
 	CLKS_PER_BIT => 434,		-- 50 MHz / 115200 Baud
@@ -224,9 +216,9 @@ generic map(
 	MAX_DIGITS   => FA_DIGITS,
 	GAME_DIGITS  => 3,		-- FA-Control legt Namen/ROMs unter GottFA80/<nnn> ab
 	MON_BYTES    => FA_MON_BYTES,
-	HAS_SIM_SW   => FA_MON,		-- Opcode 0x6F, Schalter simulieren im Monitor-Modus
+	HAS_SIM_SW   => true,		-- Opcode 0x6F, Schalter simulieren im Monitor-Modus
 	-- 80B: zwei ASCII-Zeilen zu 20 Zeichen statt der BCD-Displays (disp_alt = sys80B)
-	ALT_N_DISP      => isel(HAS_TXT, 2, 0),
+	ALT_N_DISP      => isel(HAS_DISP_80B, 2, 0),
 	ALT_DISP_TYPE   => 5,		-- ASCII
 	ALT_DISP_DIGITS => (ALPHA_W, ALPHA_W, 0, 0, 0, 0, 0),
 	ALT_MAX_DIGITS  => ALPHA_W
@@ -236,7 +228,7 @@ port map(
 	reset       => reset,
 	rxd         => FA_RXD,
 	txd         => FA_TXD,
-	ctrl_req    => fa_req_eff,
+	ctrl_req    => FA_CTRL_REQ,
 	ctrl_allow  => '1',		-- wie GottFA1 v7: Freigabe allein ueber ctrl_req
 	ctrl_active => fa_active,
 	ver_main    => dig2bcd(VERSION(1)),
@@ -258,11 +250,10 @@ port map(
 	disp_txt    => fa_txt
 	);
 
-mon_len_s <= 0 when not FA_MON else
-             22 + 2 * ALPHA_W when sys80B = '1' and HAS_TXT else 40;
+mon_len_s <= 22 + 2 * ALPHA_W when sys80B = '1' else 40;
 
 -- 80B: Zeichen des Hosts, Display 0 = Zeile 1, Display 1 = Zeile 2, linkes Zeichen zuerst
-gen_fa_txt: if HAS_TXT generate
+gen_fa_txt: if HAS_DISP_80B generate
 	fa_txt_conv: for i in 1 to ALPHA_W generate
 		fa_txt1(i) <= byte2char(fa_txt(i - 1));
 		fa_txt2(i) <= byte2char(fa_txt(ALPHA_W + i - 1));
@@ -597,14 +588,12 @@ end process;
 
 mon_data(7 downto 0)     <= x"00";		-- Byte 0 ist die Laenge, sendet fa_control
 -- bit3: Schalter simulierbar (HAS_SIM_SW, Freigabe = ctrl_allow, hier immer '1')
-gen_mon_base: if FA_MON generate
 mon_data(15 downto 8)    <= "0000" & '1' & '0' & fa_active & game_running;
 mon_data(63 downto 16)   <= mon_lamps;
 mon_data(79 downto 64)   <= "0000000" & mon_sol;
 mon_data(95 downto 80)   <= "0000000" & mon_sol_x;
 mon_data(103 downto 96)  <= "000" & mon_snd_x;
 mon_data(183 downto 104) <= "00" & fa_sw_state;
-end generate;
 
 mon_disp_pack: for n in 0 to 35 generate
 	pad: if MON_SEQ(n) < 0 generate
@@ -617,10 +606,10 @@ end generate;
 
 -- Bytes 23..: BCD-Displays (80/80A) oder bei sys80B die beiden Zeilen als ASCII
 -- (FA_MON_BYTES = 62). Ohne HAS_DISP_80B wie vorher.
-gen_mon_bcd: if FA_MON and not HAS_TXT generate
+gen_mon_bcd: if not HAS_DISP_80B generate
 	mon_data(8 * 40 + 7 downto 8 * 23) <= mon_bcd;
 end generate;
-gen_mon_80b: if FA_MON and HAS_TXT generate
+gen_mon_80b: if HAS_DISP_80B generate
 	mon_disp_bcd: for k in 23 to 40 generate
 		mon_data(8 * k + 7 downto 8 * k) <= char2byte(mon_row1(k - 22)) when sys80B = '1'
 		                                    else mon_bcd(8 * k + 7 downto 8 * k);
@@ -634,7 +623,7 @@ gen_mon_80b: if FA_MON and HAS_TXT generate
 end generate;
 
 -- Ohne HAS_DISP_80B liest das Top txt1/2 nicht; Ports trotzdem treiben.
-gen_no_txt: if not HAS_TXT generate
+gen_no_txt: if not HAS_DISP_80B generate
 	fa_txt1 <= (others => ' ');
 	fa_txt2 <= (others => ' ');
 end generate;
