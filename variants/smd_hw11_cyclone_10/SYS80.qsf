@@ -12,6 +12,7 @@
 #   scripts\files_common.tcl
 #   scripts\files_smd.tcl
 #   scripts\files_cyclone_10.tcl
+#   scripts\files_fa_lite.tcl
 #
 # Aenderungen gehoeren in eines dieser Fragmente, nicht hierher.
 # ==========================================================================
@@ -168,4 +169,8 @@ set_global_assignment -name QIP_FILE ../../lib_cyclone_10/SB_RAM.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_10/RIOT_RAM.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_10/R5101.qip
 set_global_assignment -name QIP_FILE ../../lib_cyclone_10/GAME_ROM.qip
+set_global_assignment -name VHDL_FILE ../../lib_fa_control/fa_control_pkg.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/disp80B_capture_ram.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/fa_jtag_regs.vhd
+set_global_assignment -name VHDL_FILE ../../lib_common/fa_lite_sys80.vhd
 set_global_assignment -name SDC_FILE ../../lib_common/SYS80.sdc

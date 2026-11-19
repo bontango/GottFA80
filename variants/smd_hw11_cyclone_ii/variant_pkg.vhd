@@ -20,7 +20,7 @@ package variant_pkg is
 	-- (smd_hw11_cyclone_iv_v7_1). Seit 16.11.2026.
 	constant HAS_ESP32 : boolean := false;
 	-- FA-Control "lite" ueber Virtual JTAG (lib_common\fa_jtag_regs.vhd + fa_lite_sys80.vhd,
-	-- Option fa_lite): kein LISY-Parser im FPGA, der ESP32 spricht LISY. Ruhende Varianten
-	-- smd_hw11_cyclone_iv_v4_fa_lite/smd_hw11_cyclone_10_fa_lite, seit 306 smd_hw11_cyclone_iv_v4. Seit 19.11.2026.
+	-- Option fa_lite): kein LISY-Parser im FPGA, der ESP32 spricht LISY. Aktiv in
+	-- smd_hw11_cyclone_iv_v4 und smd_hw11_cyclone_10 (seit 306). Seit 19.11.2026.
 	constant HAS_FA_LITE : boolean := false;
 end package variant_pkg;
