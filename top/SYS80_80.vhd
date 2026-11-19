@@ -81,6 +81,11 @@
 -- 17.11.2026 HAS_FA_VJTAG + FA_SPAR (dormant probe variants only): FA control without FA pins,
 --            lib_common\fa_vjtag_link.vhd feeds fa_sys80 over Virtual JTAG. FA_SPAR selects
 --            a reduced FA control (monitor or control only) for EP4CE6/10CL006.
+--
+-- 19.11.2026 HAS_FA_LITE (dormant probe variant smd_hw11_cyclone_iv_v4_fa_lite only): FA control
+--            "lite" over Virtual JTAG. No LISY parser in the FPGA any more: lib_commona_jtag_regs.vhd
+--            (register bank) + lib_commona_lite_sys80.vhd, the ESP32 speaks LISY itself
+--            (FA_Control lisy_emul.c). Full scope (monitor, control, 80B text) on the EP4CE6.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -234,6 +239,74 @@ component fa_vjtag_link
 		fa_rxd       : out std_logic;
 		fa_txd       : in  std_logic;
 		fa_ctrl_req  : out std_logic
+		);
+end component;
+
+-- FA control "lite" (HAS_FA_LITE): register bank over Virtual JTAG + GottFA80 glue.
+-- COMPONENTs as well: their sources are only listed with Option 'fa_lite'.
+component fa_jtag_regs
+	generic(
+		ID         : std_logic_vector(31 downto 0);
+		CLK_HZ     : integer := 50000000;
+		DEADMAN_MS : integer := 2000
+		);
+	port(
+		clk        : in  std_logic;
+		tck_out    : out std_logic;
+		rd_addr    : out std_logic_vector(6 downto 0);
+		rd_data    : in  std_logic_vector(7 downto 0);
+		rd_stb     : out std_logic;
+		rd_addr_s  : out std_logic_vector(6 downto 0);
+		wr_stb     : out std_logic;
+		wr_addr    : out std_logic_vector(6 downto 0);
+		wr_data    : out std_logic_vector(7 downto 0);
+		ctrl       : out std_logic;
+		alive      : out std_logic
+		);
+end component;
+
+component fa_lite_sys80
+	generic(
+		VERSION      : string(1 to 3);
+		HAS_DISP_80B : boolean
+		);
+	port(
+		clk_50       : in  std_logic;
+		reset        : in  std_logic;
+		tck          : in  std_logic;
+		rd_addr      : in  std_logic_vector(6 downto 0);
+		rd_data      : out std_logic_vector(7 downto 0);
+		rd_stb       : in  std_logic;
+		rd_addr_s    : in  std_logic_vector(6 downto 0);
+		wr_stb       : in  std_logic;
+		wr_addr      : in  std_logic_vector(6 downto 0);
+		wr_data      : in  std_logic_vector(7 downto 0);
+		ctrl         : in  std_logic;
+		alive        : in  std_logic;
+		U4_PB        : in  std_logic_vector(7 downto 0);
+		U4_pa_in     : in  std_logic_vector(7 downto 0);
+		U5_pa_out    : in  std_logic_vector(7 downto 0);
+		U5_pb_out    : in  std_logic_vector(7 downto 0);
+		U6_pa_out    : in  std_logic_vector(7 downto 0);
+		U6_pb_out    : in  std_logic_vector(7 downto 0);
+		game_running : in  std_logic;
+		not80B       : in  std_logic;
+		sys80B       : in  std_logic;
+		segments_80B : in  std_logic_vector(1 to 24);
+		game_dig2    : in  character;
+		game_dig1    : in  character;
+		game_dig0    : in  character;
+		active       : out std_logic;
+		u6a          : out std_logic_vector(7 downto 0);
+		u6b          : out std_logic_vector(7 downto 0);
+		sw_strobe    : out std_logic_vector(7 downto 0);
+		sim_ret      : out std_logic_vector(7 downto 0);
+		disp1        : out string(1 to 7);
+		disp2        : out string(1 to 7);
+		disp3        : out string(1 to 7);
+		disp4        : out string(1 to 7);
+		j2_en        : out std_logic;
+		j2_seg       : out std_logic_vector(1 to 24)
 		);
 end component;
 
@@ -403,6 +476,8 @@ signal fa_disp3		: string(1 to 7);
 signal fa_disp4		: string(1 to 7);
 signal fa_txt1			: string(1 to 20);	-- FA control display 0 (80B row 1)
 signal fa_txt2			: string(1 to 20);	-- FA control display 1 (80B row 2)
+signal fa_j2_en		: std_logic;	-- FA lite: J2 (80B display) written raw by the host
+signal fa_j2_seg		: std_logic_vector(1 to 24);
 signal u4_pb_out		: std_logic_vector(7 downto 0);
 signal bm_display1	: string(1 to 7);
 signal bm_display2	: string(1 to 7);
@@ -485,8 +560,9 @@ gen_disp80b: if HAS_DISP_80B generate
 begin
 	-- row 2: game and options, or "GAME 040 FLASH ROM  " when the ROMs come from the flash
 	-- under FA control (HAS_ESP32) both rows come from the host
-	d80_row1 <= fa_txt1 when fa_active = '1' else "GOTTFA80        V" & BOARD_ID & SW_SUB_80;
-	d80_row2 <= fa_txt2 when fa_active = '1' else
+	-- (FA lite: J2 comes from the host directly, see disp_segments, no text here)
+	d80_row1 <= fa_txt1 when fa_active = '1' and not HAS_FA_LITE else "GOTTFA80        V" & BOARD_ID & SW_SUB_80;
+	d80_row2 <= fa_txt2 when fa_active = '1' and not HAS_FA_LITE else
 	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FA SERVICE " when FA_SERVICE else
 	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " FLASH ROM  " when use_flash = '1' else
 	            "GAME " & dig2_ascii & dig1_ascii & dig0_ascii & " OPT" & g_opt_dig1 & g_opt_dig0 & "      ";
@@ -929,6 +1005,7 @@ port map(
 -- zero in case of
 disp_segments <=
    -- segments_80B when not80B = '0' else
+	fa_j2_seg when fa_j2_en = '1' else		-- FA lite, 80B game under FA control
 	bm80B_segments when show80B = '1' else	-- 80B game: boot message 2x20 (only HAS_DISP_80B)
 	bm_segments when (game_running = '0' and U5_pb_out(6) = '1') or fa_active = '1' else  --RTH
 	segments_80 when not80B = '1' else
@@ -1273,6 +1350,8 @@ gen_fa_control: if HAS_ESP32 or HAS_FA_VJTAG generate
 	signal fa_txd_s : std_logic;
 	signal fa_req_s : std_logic;
 begin
+fa_j2_en  <= '0';
+fa_j2_seg <= (others => '0');
 -- the FA ports are one bit wide here; a loop instead of FA_RXD(0), so that no static index
 -- into the null range shows up on the boards without ESP
 fa_io: for i in FA_RXD'range generate
@@ -1344,7 +1423,90 @@ end generate gen_fa_control;
 ------------------------------------------------------------------------------
 -- Boards without ESP32. The FA ports have no bits there (see entity), nothing to drive.
 ------------------------------------------------------------------------------
-gen_no_fa_control: if not (HAS_ESP32 or HAS_FA_VJTAG) generate
+------------------------------------------------------------------------------
+-- FA control "lite" (HAS_FA_LITE): ESP32 on the JTAG piggyback at P5, register bank over
+-- Virtual JTAG, the ESP speaks LISY (FA_Control lisy_emul.c). ID "FAR" & BOARD_ID.
+------------------------------------------------------------------------------
+gen_fa_lite: if HAS_FA_LITE and not (HAS_ESP32 or HAS_FA_VJTAG) generate
+	signal r_tck     : std_logic;
+	signal r_rd_addr : std_logic_vector(6 downto 0);
+	signal r_rd_data : std_logic_vector(7 downto 0);
+	signal r_rd_stb  : std_logic;
+	signal r_rd_as   : std_logic_vector(6 downto 0);
+	signal r_wr_stb  : std_logic;
+	signal r_wr_addr : std_logic_vector(6 downto 0);
+	signal r_wr_data : std_logic_vector(7 downto 0);
+	signal r_ctrl    : std_logic;
+	signal r_alive   : std_logic;
+begin
+FAR: fa_jtag_regs
+	generic map(
+		ID => x"464152" & std_logic_vector(to_unsigned(character'pos(BOARD_ID(1)), 8))	-- "FAR3"
+		)
+	port map(
+		clk        => clk_50,
+		tck_out    => r_tck,
+		rd_addr    => r_rd_addr,
+		rd_data    => r_rd_data,
+		rd_stb     => r_rd_stb,
+		rd_addr_s  => r_rd_as,
+		wr_stb     => r_wr_stb,
+		wr_addr    => r_wr_addr,
+		wr_data    => r_wr_data,
+		ctrl       => r_ctrl,
+		alive      => r_alive
+		);
+
+FAL: fa_lite_sys80
+	generic map(
+		VERSION      => BOARD_ID & SW_SUB_80,
+		HAS_DISP_80B => HAS_DISP_80B
+		)
+	port map(
+		clk_50       => clk_50,
+		reset        => not reset_sw_stable,
+		tck          => r_tck,
+		rd_addr      => r_rd_addr,
+		rd_data      => r_rd_data,
+		rd_stb       => r_rd_stb,
+		rd_addr_s    => r_rd_as,
+		wr_stb       => r_wr_stb,
+		wr_addr      => r_wr_addr,
+		wr_data      => r_wr_data,
+		ctrl         => r_ctrl,
+		alive        => r_alive,
+		U4_PB        => U4_PB,
+		U4_pa_in     => U4_pa_in,
+		U5_pa_out    => U5_pa_out,
+		U5_pb_out    => U5_pb_out,
+		U6_pa_out    => U6_pa_out,
+		U6_pb_out    => U6_pb_out,
+		game_running => game_running,
+		not80B       => not80B,
+		sys80B       => sys80B,
+		segments_80B => segments_80B,
+		game_dig2    => dig2_ascii,
+		game_dig1    => dig1_ascii,
+		game_dig0    => dig0_ascii,
+		active       => fa_active,
+		u6a          => fa_u6a,
+		u6b          => fa_u6b,
+		sw_strobe    => fa_sw_strobe,
+		sim_ret      => fa_sim_ret,
+		disp1        => fa_disp1,
+		disp2        => fa_disp2,
+		disp3        => fa_disp3,
+		disp4        => fa_disp4,
+		j2_en        => fa_j2_en,
+		j2_seg       => fa_j2_seg
+		);
+fa_txt1 <= (others => ' ');
+fa_txt2 <= (others => ' ');
+end generate gen_fa_lite;
+
+gen_no_fa_control: if not (HAS_ESP32 or HAS_FA_VJTAG or HAS_FA_LITE) generate
+	fa_j2_en     <= '0';
+	fa_j2_seg    <= (others => '0');
 	fa_active    <= '0';
 	fa_u6a      <= (others => '1');
 	fa_u6b       <= (others => '0');
