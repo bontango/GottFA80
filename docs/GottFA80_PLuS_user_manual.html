@@ -351,8 +351,16 @@ simulated as &#39;closed&#39;, independent of the real contact.</p>
 <p>With Dip3 and Dip4 both OFF the real slam contact of the machine is
 used.</p>
 <h4 id="425-s2-dip5-and-dip6">4.2.5. S2-Dip5 and Dip6</h4>
-<p>Not used. They are shown on the boot display (chapter 5.2) but have
-no function.</p>
+<p><strong>Dip5: Caveman without video board.</strong> Only for Caveman
+(game 38 and 39). The Caveman game sends every command to its video
+board and waits for an answer (switch 16, strobe 1 / return 6). Without
+the video board it repeats the command forever and never reaches the
+attract mode. With Dip5 &#39;ON&#39; GottFA80 gives this answer itself, so
+Caveman can be played and tested without the video board. Leave Dip5 OFF
+in a Caveman with a working video board. For all other games Dip5 has no
+function.</p>
+<p><strong>Dip6:</strong> not used. It is shown on the boot display
+(chapter 5.2) but has no function.</p>
 <h3 id="43-s3-soundboard-options">4.3. S3 soundboard options</h3>
 <p>The four switches of S3 replace the DIP switches of the original
 soundboard. Their meaning depends on the soundboard that is emulated for

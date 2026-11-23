@@ -166,6 +166,8 @@ signal U4_RAM_dout		: std_logic_vector(7 downto 0);
 signal U4_IO_dout			: std_logic_vector(7 downto 0);
 signal U4_pa_in			: std_logic_vector(7 downto 0);
 signal SW_Freeplay		: std_logic_vector(7 downto 0):="00000000";
+signal SW_Caveman		: std_logic_vector(7 downto 0):="00000000";	-- simulierte Videoboard-Quittung (Caveman, DIP 5)
+signal opt_caveman_ack	: std_logic;
 --signal U4_pa_out		: std_logic_vector(7 downto 0);
 --signal U4_pb_in			: std_logic_vector(7 downto 0);
 --signal U4_pb_out			: std_logic_vector(7 downto 0);
@@ -363,6 +365,7 @@ opt_freeplay				<= not game_option(1);
 opt_init_nvram				<= not game_option(2);
 opt_slam_fix_open			<= not game_option(3);
 opt_slam_fix_close		<= not game_option(4);
+opt_caveman_ack			<= not game_option(5);	-- Caveman ohne Videoboard (Quittung Schalter 16)
 
 
 ----------------------
@@ -801,6 +804,42 @@ Freeplay: process(sim_coin, U4_PB, opt_freeplay)
 	end if;	
  end process;  
 	
+-- Caveman (Spiel 38/39) ohne Videoboard (Option DIP 5), seit 23.11.2026, alle PLuS/80S-Boards.
+-- Das Spiel-ROM legt ein Kommando auf Lampenspalte 4 und gibt den Schreibimpuls mit
+-- Spalte 5 Bit 0 (U6 PB = "0101" & xxx1). Danach wartet es, dass Schalter 16 (Strobe 1,
+-- Return 6, kommt beim echten Spiel vom 8212 des Videoboards) schliesst und wieder oeffnet,
+-- je Phase ca. 0,4 s. Ohne Quittung wiederholt es das Kommando endlos - kein Attract-Modus.
+-- Hier: ca. 2 ms nach dem Impuls Schalter 16 fuer ca. 30 ms schliessen (wie PinMAME gts80.c).
+-- Nicht an einer echten Caveman mit Videoboard einschalten.
+caveman_ack: block
+	signal cav_cmd		: std_logic;
+	signal cav_cmd_d	: std_logic := '0';
+	signal cav_cnt		: integer range 0 to 1600000 := 0;
+	signal cav_ack		: std_logic := '0';
+begin
+	cav_cmd <= '1' when U6_pb_out(7 downto 4) = "0101" and U6_pb_out(0) = '1' else '0';
+
+	process(clk_50)
+	begin
+		if rising_edge(clk_50) then
+			cav_cmd_d <= cav_cmd;
+			if opt_caveman_ack = '0' or (to_integer(unsigned(not game_select)) /= 38
+			                             and to_integer(unsigned(not game_select)) /= 39) then
+				cav_cnt <= 0;
+				cav_ack <= '0';
+			elsif cav_cnt /= 0 then
+				cav_cnt <= cav_cnt - 1;
+				if cav_cnt = 1500000 then cav_ack <= '1'; end if;	-- nach 2 ms (50 MHz)
+				if cav_cnt = 1 then cav_ack <= '0'; end if;			-- 30 ms gehalten
+			elsif cav_cmd = '1' and cav_cmd_d = '0' then
+				cav_cnt <= 1600000;
+			end if;
+		end if;
+	end process;
+
+	SW_Caveman(6) <= cav_ack and U4_PB(1);
+end block;
+
 -- detect credit and test_switch for trigger
 -- due to iverters on the borad switch is active when both strobe and return are HIGH
 -- switch enable for dips need to be low, Gottlieb does check dips when not in game!?
@@ -1062,7 +1101,7 @@ port map(
    din	 => cpu_dout,
 	dout	 => U4_IO_dout,
 		
-	pa_in	 => U4_pa_in or SW_Freeplay or fa_sim_ret,
+	pa_in	 => U4_pa_in or SW_Freeplay or SW_Caveman or fa_sim_ret,
    pa_out => open,
    pb_in  => "00000000",
 	pb_out => u4_pb_out
