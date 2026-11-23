@@ -10,5 +10,5 @@
     ReleaseArtifact = 'jic'
     Dormant     = $false
     VirtualPins = @('Debug[0]', 'Debug[1]', 'Debug[2]', 'FA_RXD', 'FA_TXD', 'FA_CTRL_REQ', 'Serial_RX', 'Serial_TX', 'SD_MOSI', 'SD_MISO', 'SD_CLK', 'EE_MOSI', 'EE_MISO', 'EE_CLK')
-    Notes       = 'Ausgeliefert als GottFA80_PLuS_v511.jic. Nur Debug[0] (PIN_11) ist herausgefuehrt; PIN_7/PIN_2 sind hier Sound/Audio_RX (Korrektur v511).'
+    Notes       = 'Ausgeliefert als GottFA80_PLuS_v511.jic. Kein Debug-Pin herausgefuehrt: Debug[0] seit 13.11.2026 VIRTUAL_PIN (PIN_11 neben DCLK, Error 169182), Debug[1..2] virtuell, weil PIN_7/PIN_2 hier Sound/Audio_RX sind (Korrektur v511).'
 }
